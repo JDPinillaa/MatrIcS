@@ -1,0 +1,1076 @@
+openapi: 3.0.3
+info:
+  title: MatrIcS - Sistema de Parqueadero Automatizado LPR API
+  version: 1.0.0
+  description: >
+    Especificación OpenAPI 3.0 del MVP para la automatización del ingreso,
+    clasificación por placa (CARRO/MOTO), generación única de cobro por día
+    operativo (06:00 a 05:59), registro de pago en efectivo idempotente, control
+    de salida con barrera simulada, validación manual y lectura LPR/OCR.
+servers:
+  - url: http://localhost:3000
+    description: Servidor local de desarrollo
+
+tags:
+  - name: Health
+    description: Verificación de estado del servidor y base de datos (TT-03)
+  - name: Autenticación
+    description: Inicio de sesión y perfil por roles (HU-01)
+  - name: Administración
+    description: Configuración de tarifas, franjas horarias y cupos por sede (HU-02)
+  - name: Accesos
+    description: Control de ingreso, validación manual y salida de vehículos (HU-03, HU-04, HU-05, HU-07)
+  - name: Caja y Cobros
+    description: Consulta de cobros pendientes y pagos idempotentes con pase diario (HU-06)
+  - name: Consultas
+    description: Historial filtrado de eventos de acceso y cobros generados (HU-08)
+  - name: Motor LPR
+    description: Reconocimiento automático de placa y nivel de confianza vía OCR (HU-09)
+
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Verifica el estado del servidor y conexión a PostgreSQL
+      operationId: checkHealth
+      responses:
+        '200':
+          description: Servidor operativo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/login:
+    post:
+      tags:
+        - Autenticación
+      summary: Inicia sesión y retorna token JWT con el rol del usuario
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Autenticación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/perfil:
+    get:
+      tags:
+        - Autenticación
+      summary: Obtiene el perfil del usuario autenticado
+      operationId: getProfile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Perfil del usuario en sesión
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsuarioPerfil'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /sedes/{sedeId}/configuracion:
+    get:
+      tags:
+        - Administración
+      summary: Consulta tarifas, franjas horarias, cupos y umbral de confianza de la sede
+      operationId: getSedeConfiguracion
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/SedeIdParam'
+      responses:
+        '200':
+          description: Configuración vigente de la sede
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfiguracionSedeResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /sedes/{sedeId}/tarifas:
+    put:
+      tags:
+        - Administración
+      summary: Configura tarifas diurna/nocturna para CARRO y tarifa de MOTO (RN-01, RN-02)
+      description: >
+        Solo accesible para rol ADMINISTRADOR. Permite configurar la tarifa de
+        motos en $0 (exenta) o mayor. Rechaza configuraciones donde la tarifa
+        nocturna sea mayor o igual a la diurna del mismo tipo de vehículo.
+      operationId: actualizarTarifas
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/SedeIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActualizarTarifasRequest'
+      responses:
+        '200':
+          description: Tarifas actualizadas correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfiguracionSedeResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /sedes/{sedeId}/franjas:
+    put:
+      tags:
+        - Administración
+      summary: Configura los horarios de inicio y fin de las franjas DIURNA y NOCTURNA
+      operationId: actualizarFranjas
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/SedeIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActualizarFranjasRequest'
+      responses:
+        '200':
+          description: Franjas horarias actualizadas correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfiguracionSedeResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /sedes/{sedeId}/cupos:
+    put:
+      tags:
+        - Administración
+      summary: Configura la capacidad máxima de cupos para CARRO y MOTO
+      operationId: actualizarCupos
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/SedeIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActualizarCuposRequest'
+      responses:
+        '200':
+          description: Cupos actualizados correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfiguracionSedeResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /accesos/ingreso:
+    post:
+      tags:
+        - Accesos
+      summary: Procesa el ingreso de un vehículo por placa y nivel de confianza (HU-03, HU-05)
+      description: >
+        Valida formato de placa colombiano (AAA123 para CARRO, AAA12A para MOTO),
+        verifica si la confianza alcanza el umbral configurado, valida cupos
+        disponibles (LLENO si es 0), descuenta 1 cupo, abre la barrera simulada y
+        genera un único cobro por (placa, sede, día operativo 06:00-05:59) salvo
+        que ya exista cobro pendiente o pase diario vigente.
+      operationId: registrarIngreso
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegistroAccesoRequest'
+      responses:
+        '201':
+          description: Resultado del procesamiento en carril de entrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResultadoIngresoResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /accesos/validacion-manual:
+    post:
+      tags:
+        - Accesos
+      summary: Confirma, corrige o descarta una lectura con baja confianza (HU-04)
+      description: >
+        Usado por el OPERADOR cuando el carril pausa la apertura porque la
+        confianza fue menor al umbral. Si confirma o corrige la placa, ejecuta las
+        validaciones de formato/cupo/cobro o salida dejando lectura_manual = true.
+      operationId: validarLecturaManual
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ValidacionManualRequest'
+      responses:
+        '200':
+          description: Validación manual procesada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResultadoValidacionManualResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /accesos/salida:
+    post:
+      tags:
+        - Accesos
+      summary: Valida el estado del cobro y autoriza o bloquea la salida (HU-07)
+      description: >
+        Autoriza la apertura de la barrera simulada y libera 1 cupo únicamente si
+        el vehículo no tiene cobro pendiente (ej. moto exenta en $0) o su cobro
+        del día operativo se encuentra en estado PAGADO.
+      operationId: registrarSalida
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegistroAccesoRequest'
+      responses:
+        '200':
+          description: Decisión de barrera en carril de salida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResultadoSalidaResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /cobros/pendiente:
+    get:
+      tags:
+        - Caja y Cobros
+      summary: Consulta el cobro pendiente del día operativo actual por placa (HU-06)
+      operationId: consultarCobroPendiente
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: placa
+          in: query
+          required: true
+          description: Placa del vehículo en mayúsculas
+          schema:
+            type: string
+            example: ABC123
+        - name: sedeId
+          in: query
+          required: true
+          description: Identificador de la sede
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Detalle del cobro encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CobroDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /pagos:
+    post:
+      tags:
+        - Caja y Cobros
+      summary: Registra el pago en efectivo de forma idempotente y activa el pase diario (HU-06)
+      description: >
+        Marca el cobro como PAGADO y registra la transacción con llave única de
+        idempotencia. Si se recibe una petición repetida con la misma llave o sobre
+        un cobro ya pagado, no duplica dinero y devuelve el estado actual del pago.
+      operationId: registrarPago
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegistrarPagoRequest'
+      responses:
+        '201':
+          description: Pago registrado o recuperado de forma idempotente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagoResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /eventos:
+    get:
+      tags:
+        - Consultas
+      summary: Lista los eventos de acceso con filtros básicos (HU-08)
+      operationId: listarEventos
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: placa
+          in: query
+          required: false
+          description: Búsqueda total o parcial por placa
+          schema:
+            type: string
+            example: ABC
+        - name: fecha
+          in: query
+          required: false
+          description: Fecha calendario o día operativo (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+            example: '2026-11-16'
+        - name: tipoEvento
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [ENTRADA, SALIDA]
+        - name: lecturaManual
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Listado de eventos de acceso filtrados
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EventoAccesoDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /cobros:
+    get:
+      tags:
+        - Consultas
+      summary: Lista los cobros generados con filtros por placa, fecha y estado (HU-08)
+      operationId: listarCobros
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: placa
+          in: query
+          required: false
+          description: Búsqueda total o parcial por placa
+          schema:
+            type: string
+            example: ABC123
+        - name: fechaDiaOperativo
+          in: query
+          required: false
+          description: Día operativo (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+            example: '2026-11-16'
+        - name: estado
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [PENDIENTE, PAGADO, EXENTO]
+      responses:
+        '200':
+          description: Listado de cobros filtrados con su tarifa histórica
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CobroDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /lpr/reconocer:
+    post:
+      tags:
+        - Motor LPR
+      summary: Extrae placa y nivel de confianza desde una imagen mediante el adaptador LPR/OCR (HU-09)
+      operationId: reconocerPlaca
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - imagen
+              properties:
+                imagen:
+                  type: string
+                  format: binary
+                  description: Captura fotográfica del vehículo (.jpg o .png)
+      responses:
+        '200':
+          description: Resultado del reconocimiento de placa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LprReconocimientoResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    SedeIdParam:
+      name: sedeId
+      in: path
+      required: true
+      description: Identificador numérico de la sede
+      schema:
+        type: integer
+        example: 1
+
+  responses:
+    BadRequest:
+      description: Error de validación de entrada o regla de negocio (HTTP 400)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/StandardErrorResponse'
+          example:
+            statusCode: 400
+            error: Bad Request
+            code: BUSINESS_RULE_VIOLATION
+            message: La tarifa nocturna debe ser estrictamente menor que la tarifa diurna
+            timestamp: '2026-11-16T21:00:00.000Z'
+            path: /sedes/1/tarifas
+    Unauthorized:
+      description: No autenticado o token inválido/expirado (HTTP 401)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/StandardErrorResponse'
+          example:
+            statusCode: 401
+            error: Unauthorized
+            code: HTTP_401
+            message: Credenciales inválidas o sesión expirada
+            timestamp: '2026-11-16T21:00:00.000Z'
+            path: /auth/perfil
+    Forbidden:
+      description: Rol sin permisos suficientes para la operación (HTTP 403)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/StandardErrorResponse'
+          example:
+            statusCode: 403
+            error: Forbidden
+            code: HTTP_403
+            message: El rol OPERADOR no tiene permisos para modificar tarifas
+            timestamp: '2026-11-16T21:00:00.000Z'
+            path: /sedes/1/tarifas
+    NotFound:
+      description: Recurso solicitado no encontrado (HTTP 404)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/StandardErrorResponse'
+          example:
+            statusCode: 404
+            error: Not Found
+            code: HTTP_404
+            message: No se encontró cobro pendiente para la placa ABC123 en el día operativo
+            timestamp: '2026-11-16T21:00:00.000Z'
+            path: /cobros/pendiente
+    Conflict:
+      description: Conflicto de unicidad o estado de negocio (HTTP 409)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/StandardErrorResponse'
+          example:
+            statusCode: 409
+            error: Conflict
+            code: HTTP_409
+            message: Ya existe un registro de cobro para esa placa, sede y día operativo
+            timestamp: '2026-11-16T21:00:00.000Z'
+            path: /accesos/ingreso
+    InternalServerError:
+      description: Error interno controlado sin exposición de trazas (HTTP 500)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/StandardErrorResponse'
+          example:
+            statusCode: 500
+            error: Internal Server Error
+            code: INTERNAL_SERVER_ERROR
+            message: Error interno del servidor
+            timestamp: '2026-11-16T21:00:00.000Z'
+            path: /health
+
+  schemas:
+    HealthResponse:
+      type: object
+      required: [status, service, timestamp, database]
+      properties:
+        status:
+          type: string
+          example: ok
+        service:
+          type: string
+          example: matrics-backend
+        timestamp:
+          type: string
+          format: date-time
+          example: '2026-11-16T21:00:00.000Z'
+        database:
+          type: string
+          enum: [connected, disconnected]
+          example: connected
+
+    StandardErrorResponse:
+      type: object
+      required: [statusCode, error, code, message, timestamp, path]
+      properties:
+        statusCode:
+          type: integer
+          example: 400
+        error:
+          type: string
+          example: Bad Request
+        code:
+          type: string
+          example: BUSINESS_RULE_VIOLATION
+        message:
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: string
+          example: Mensaje descriptivo del error
+        timestamp:
+          type: string
+          format: date-time
+        path:
+          type: string
+          example: /tarifas
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: operador@parqueadero.com
+        password:
+          type: string
+          format: password
+          example: Operador123*
+
+    UsuarioPerfil:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 2
+        nombreCompleto:
+          type: string
+          example: Carlos Operador
+        email:
+          type: string
+          format: email
+          example: operador@parqueadero.com
+        rol:
+          type: string
+          enum: [OPERADOR, ADMINISTRADOR]
+          example: OPERADOR
+        activo:
+          type: boolean
+          example: true
+
+    LoginResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        usuario:
+          $ref: '#/components/schemas/UsuarioPerfil'
+
+    TarifaItemDto:
+      type: object
+      properties:
+        tipoVehiculo:
+          type: string
+          enum: [CARRO, MOTO]
+        franja:
+          type: string
+          enum: [DIURNA, NOCTURNA]
+        valor:
+          type: number
+          minimum: 0
+          example: 10000
+
+    FranjaHorariaDto:
+      type: object
+      properties:
+        nombre:
+          type: string
+          enum: [DIURNA, NOCTURNA]
+        horaInicio:
+          type: string
+          example: '06:00:00'
+        horaFin:
+          type: string
+          example: '17:59:59'
+
+    CupoDto:
+      type: object
+      properties:
+        tipoVehiculo:
+          type: string
+          enum: [CARRO, MOTO]
+        capacidadMaxima:
+          type: integer
+          minimum: 0
+          example: 40
+        ocupados:
+          type: integer
+          minimum: 0
+          example: 12
+        disponibles:
+          type: integer
+          minimum: 0
+          example: 28
+
+    ConfiguracionSedeResponse:
+      type: object
+      properties:
+        sedeId:
+          type: integer
+          example: 1
+        nombreSede:
+          type: string
+          example: Sede Principal
+        umbralConfianza:
+          type: number
+          minimum: 0
+          maximum: 100
+          example: 80
+        tarifas:
+          type: array
+          items:
+            $ref: '#/components/schemas/TarifaItemDto'
+        franjas:
+          type: array
+          items:
+            $ref: '#/components/schemas/FranjaHorariaDto'
+        cupos:
+          type: array
+          items:
+            $ref: '#/components/schemas/CupoDto'
+
+    ActualizarTarifasRequest:
+      type: object
+      required: [carroDiurna, carroNocturna, motoDiurna, motoNocturna]
+      properties:
+        carroDiurna:
+          type: number
+          minimum: 0
+          example: 10000
+        carroNocturna:
+          type: number
+          minimum: 0
+          example: 7000
+        motoDiurna:
+          type: number
+          minimum: 0
+          example: 0
+        motoNocturna:
+          type: number
+          minimum: 0
+          example: 0
+
+    ActualizarFranjasRequest:
+      type: object
+      required: [diurnaInicio, diurnaFin, nocturnaInicio, nocturnaFin]
+      properties:
+        diurnaInicio:
+          type: string
+          example: '06:00:00'
+        diurnaFin:
+          type: string
+          example: '17:59:59'
+        nocturnaInicio:
+          type: string
+          example: '18:00:00'
+        nocturnaFin:
+          type: string
+          example: '05:59:59'
+
+    ActualizarCuposRequest:
+      type: object
+      required: [capacidadCarros, capacidadMotos]
+      properties:
+        capacidadCarros:
+          type: integer
+          minimum: 0
+          example: 40
+        capacidadMotos:
+          type: integer
+          minimum: 0
+          example: 25
+
+    RegistroAccesoRequest:
+      type: object
+      required: [sedeId, placa, confianzaLectura]
+      properties:
+        sedeId:
+          type: integer
+          example: 1
+        placa:
+          type: string
+          example: ABC123
+        confianzaLectura:
+          type: number
+          minimum: 0
+          maximum: 100
+          example: 92.5
+
+    ValidacionManualRequest:
+      type: object
+      required: [sedeId, tipoEvento, accion]
+      properties:
+        sedeId:
+          type: integer
+          example: 1
+        tipoEvento:
+          type: string
+          enum: [ENTRADA, SALIDA]
+        accion:
+          type: string
+          enum: [CONFIRMAR, DESCARTAR]
+        placaCorregida:
+          type: string
+          description: Requerida cuando accion es CONFIRMAR
+          example: MNP789
+        confianzaOriginal:
+          type: number
+          example: 60
+
+    EventoAccesoDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 101
+        sedeId:
+          type: integer
+          example: 1
+        tipoVehiculo:
+          type: string
+          enum: [CARRO, MOTO]
+        usuarioId:
+          type: integer
+          nullable: true
+          example: 2
+        placa:
+          type: string
+          example: ABC123
+        tipoEvento:
+          type: string
+          enum: [ENTRADA, SALIDA]
+        confianzaLectura:
+          type: number
+          example: 92.5
+        lecturaManual:
+          type: boolean
+          example: false
+        fechaHora:
+          type: string
+          format: date-time
+        resultadoBarrera:
+          type: string
+          enum: [ABIERTA, CERRADA, LLENO, PENDIENTE_VALIDACION]
+        motivo:
+          type: string
+          nullable: true
+          example: Cupo disponible y lectura automática válida
+
+    CobroDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 55
+        sedeId:
+          type: integer
+          example: 1
+        placa:
+          type: string
+          example: ABC123
+        tipoVehiculo:
+          type: string
+          enum: [CARRO, MOTO]
+        fechaDiaOperativo:
+          type: string
+          format: date
+          example: '2026-11-16'
+        franjaAplicada:
+          type: string
+          enum: [DIURNA, NOCTURNA]
+        valorAplicado:
+          type: number
+          example: 10000
+        estado:
+          type: string
+          enum: [PENDIENTE, PAGADO, EXENTO]
+        generadoEn:
+          type: string
+          format: date-time
+
+    ResultadoIngresoResponse:
+      type: object
+      properties:
+        requiereValidacionManual:
+          type: boolean
+          example: false
+        resultadoBarrera:
+          type: string
+          enum: [ABIERTA, CERRADA, LLENO, PENDIENTE_VALIDACION]
+        motivo:
+          type: string
+          example: Barrera Abierta - Ingreso registrado correctamente
+        evento:
+          $ref: '#/components/schemas/EventoAccesoDto'
+        cobro:
+          $ref: '#/components/schemas/CobroDto'
+
+    ResultadoValidacionManualResponse:
+      type: object
+      properties:
+        descartado:
+          type: boolean
+          example: false
+        resultadoBarrera:
+          type: string
+          enum: [ABIERTA, CERRADA, LLENO]
+        motivo:
+          type: string
+          example: Lectura confirmada manualmente (LECTURA_MANUAL)
+        evento:
+          $ref: '#/components/schemas/EventoAccesoDto'
+        cobro:
+          $ref: '#/components/schemas/CobroDto'
+
+    ResultadoSalidaResponse:
+      type: object
+      properties:
+        requiereValidacionManual:
+          type: boolean
+          example: false
+        resultadoBarrera:
+          type: string
+          enum: [ABIERTA, CERRADA, PENDIENTE_VALIDACION]
+        motivo:
+          type: string
+          example: 'Barrera Abierta: Pase diario vigente'
+        evento:
+          $ref: '#/components/schemas/EventoAccesoDto'
+
+    RegistrarPagoRequest:
+      type: object
+      required: [cobroId, llaveIdempotencia, metodo]
+      properties:
+        cobroId:
+          type: integer
+          example: 55
+        llaveIdempotencia:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        metodo:
+          type: string
+          enum: [EFECTIVO]
+          example: EFECTIVO
+
+    PagoResponse:
+      type: object
+      properties:
+        pagoId:
+          type: integer
+          example: 12
+        cobroId:
+          type: integer
+          example: 55
+        monto:
+          type: number
+          example: 10000
+        metodo:
+          type: string
+          example: EFECTIVO
+        llaveIdempotencia:
+          type: string
+          example: 550e8400-e29b-41d4-a716-446655440000
+        paseVigenteHasta:
+          type: string
+          format: date-time
+          example: '2026-11-17T05:59:59.000Z'
+        pagadoEn:
+          type: string
+          format: date-time
+        idempotenteReutilizado:
+          type: boolean
+          example: false
+
+    LprReconocimientoResponse:
+      type: object
+      properties:
+        placa:
+          type: string
+          nullable: true
+          example: ABC123
+        confianza:
+          type: number
+          minimum: 0
+          maximum: 100
+          example: 91.4
+        origen:
+          type: string
+          enum: [OCR_FASTAPI, SIMULADOR]
+          example: OCR_FASTAPI
