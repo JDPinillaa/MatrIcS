@@ -1,5 +1,5 @@
 import { env } from '../config/env'
-import { getAccessToken } from '../auth/session-store'
+import { clearSession, getAccessToken } from '../auth/session-store'
 import { ApiError } from './api-error'
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
@@ -138,10 +138,12 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     init.body = JSON.stringify(body)
   }
 
+  let sentToken: string | null = null
+
   if (auth) {
-    const token = getAccessToken()
-    if (token) {
-      requestHeaders.Authorization = `Bearer ${token}`
+    sentToken = getAccessToken()
+    if (sentToken) {
+      requestHeaders.Authorization = `Bearer ${sentToken}`
     }
   }
 
@@ -160,7 +162,17 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     scope.dispose()
   }
 
-  return parseResponse<T>(response, url)
+  try {
+    return await parseResponse<T>(response, url)
+  } catch (error) {
+    // A 401 on a request that actually carried a token means the session is no
+    // longer valid. Clearing it here is enough: the route guard sends the user
+    // back to the login view, so the data layer never needs to navigate.
+    if (sentToken && error instanceof ApiError && error.status === 401) {
+      clearSession('expired')
+    }
+    throw error
+  }
 }
 
 export const apiClient = {

@@ -1,18 +1,70 @@
 import { cleanup, render, screen } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
+import { clearSession, setSession } from './auth/session-store'
+import type { UsuarioPerfil } from './api/types'
+
+const USER: UsuarioPerfil = {
+  id: 2,
+  nombreCompleto: 'Carlos Operador',
+  email: 'operador@parqueadero.com',
+  rol: 'OPERADOR',
+  activo: true,
+}
+
+function authenticate(): void {
+  setSession({ accessToken: 'token-123', user: USER })
+}
 
 /**
- * End-to-end render of the real application (router, layout, providers) inside
- * jsdom. `fetch` is forced to fail so every test also covers the DoD scenario
- * "backend apagado": the UI must stay usable and report the failure.
+ * End-to-end render of the real application (router, guard, layout, providers)
+ * inside jsdom. `fetch` is forced to fail so every authenticated test also
+ * covers the DoD scenario "backend apagado": the UI must stay usable.
  */
-describe('App shell', () => {
+describe('App shell sin sesión', () => {
   beforeEach(() => {
+    clearSession()
     vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockRejectedValue(new TypeError('Failed to fetch')))
   })
 
-  it('redirects the root path into the lane view and renders the main menu', async () => {
+  afterEach(() => {
+    clearSession()
+    vi.unstubAllGlobals()
+  })
+
+  it('redirige a /login al entrar a una vista operativa sin sesión', async () => {
+    window.history.pushState({}, '', '/carril')
+    render(<App />)
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: /iniciar sesión/i }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('navigation', { name: /menú principal/i })).not.toBeInTheDocument()
+  })
+
+  it('renderiza el login fuera del shell operativo', async () => {
+    window.history.pushState({}, '', '/login')
+    render(<App />)
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: /iniciar sesión/i }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('navigation', { name: /menú principal/i })).not.toBeInTheDocument()
+  })
+})
+
+describe('App shell con sesión', () => {
+  beforeEach(() => {
+    authenticate()
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockRejectedValue(new TypeError('Failed to fetch')))
+  })
+
+  afterEach(() => {
+    clearSession()
+    vi.unstubAllGlobals()
+  })
+
+  it('redirige la raíz al carril y renderiza el menú principal', async () => {
     window.history.pushState({}, '', '/')
     render(<App />)
 
@@ -22,7 +74,7 @@ describe('App shell', () => {
     expect(screen.getByRole('navigation', { name: /menú principal/i })).toBeInTheDocument()
   })
 
-  it('navigates to every base route of the DoD', async () => {
+  it('navega por todas las rutas base del DoD', async () => {
     const routes: Array<{ path: string; heading: RegExp }> = [
       { path: '/carril', heading: /carril de entrada\/salida/i },
       { path: '/caja', heading: /caja de pagos/i },
@@ -40,7 +92,7 @@ describe('App shell', () => {
     }
   })
 
-  it('renders the barrier gallery on its internal route', async () => {
+  it('renderiza la galería de la barrera en su ruta interna', async () => {
     window.history.pushState({}, '', '/dev/barrera')
     render(<App />)
 
@@ -50,26 +102,20 @@ describe('App shell', () => {
     expect(screen.getAllByRole('status').length).toBeGreaterThanOrEqual(3)
   })
 
-  it('keeps the screen usable and reports the connection when the backend is down', async () => {
+  it('mantiene la pantalla usable y reporta la conexión cuando el backend está caído', async () => {
     window.history.pushState({}, '', '/carril')
     render(<App />)
 
     expect(await screen.findByText(/backend sin conexión/i)).toBeInTheDocument()
-    expect(screen.getByRole('heading', { level: 1, name: /carril de entrada\/salida/i })).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { level: 1, name: /carril de entrada\/salida/i }),
+    ).toBeInTheDocument()
   })
 
-  it('renders a controlled 404 instead of a blank screen', async () => {
+  it('renderiza un 404 controlado en lugar de una pantalla en blanco', async () => {
     window.history.pushState({}, '', '/ruta-que-no-existe')
     render(<App />)
 
     expect(await screen.findByText(/esta vista no existe/i)).toBeInTheDocument()
-  })
-
-  it('renders the login view outside the operational shell', async () => {
-    window.history.pushState({}, '', '/login')
-    render(<App />)
-
-    expect(await screen.findByRole('heading', { level: 1, name: /iniciar sesión/i })).toBeInTheDocument()
-    expect(screen.queryByRole('navigation', { name: /menú principal/i })).not.toBeInTheDocument()
   })
 })

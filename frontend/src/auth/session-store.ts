@@ -7,6 +7,9 @@ export type Session = {
   user: UsuarioPerfil
 }
 
+/** Why the previous session ended, so the login view can explain the redirect. */
+export type LogoutReason = 'expired' | 'manual'
+
 /**
  * Single owner of the session credentials.
  *
@@ -15,6 +18,7 @@ export type Session = {
  * cookies, only this module and `api-client` change.
  */
 let currentSession: Session | null = readFromStorage()
+let lastLogoutReason: LogoutReason | null = null
 const listeners = new Set<() => void>()
 
 function readFromStorage(): Session | null {
@@ -62,14 +66,25 @@ export function getAccessToken(): string | null {
   return currentSession?.accessToken ?? null
 }
 
+export function getLogoutReason(): LogoutReason | null {
+  return lastLogoutReason
+}
+
 export function setSession(session: Session): void {
   currentSession = session
+  lastLogoutReason = null
   persist()
   emit()
 }
 
-export function clearSession(): void {
+/**
+ * Drops the session. `expired` is used by the HTTP client on a 401, so the
+ * login view can tell the user why they were sent back.
+ */
+export function clearSession(reason: LogoutReason = 'manual'): void {
+  const hadSession = currentSession !== null
   currentSession = null
+  lastLogoutReason = hadSession ? reason : null
   persist()
   emit()
 }

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { apiClient } from './api-client'
 import { ApiError } from './api-error'
-import { clearSession, setSession } from '../auth/session-store'
+import { clearSession, getLogoutReason, getSession, setSession } from '../auth/session-store'
 import type { UsuarioPerfil } from '../api/types'
 
 const USER: UsuarioPerfil = {
@@ -37,6 +37,7 @@ describe('apiClient', () => {
   })
 
   afterEach(() => {
+    clearSession()
     vi.unstubAllGlobals()
   })
 
@@ -133,5 +134,43 @@ describe('apiClient', () => {
     vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 204 })))
 
     await expect(apiClient.delete('/eventos/1')).resolves.toBeUndefined()
+  })
+
+  it('clears the session when an authenticated request returns 401', async () => {
+    setSession({ accessToken: 'token-123', user: USER })
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ message: 'Token expirado' }, 401)),
+    )
+
+    const error = await captureError(apiClient.get('/auth/perfil'))
+
+    expect(error.status).toBe(401)
+    expect(getSession()).toBeNull()
+    expect(getLogoutReason()).toBe('expired')
+  })
+
+  it('does not expire the session when a failed public login returns 401', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ message: 'Credenciales inválidas' }, 401)),
+    )
+
+    await captureError(apiClient.post('/auth/login', {}, { auth: false }))
+
+    expect(getLogoutReason()).toBeNull()
+  })
+
+  it('keeps the session when the failure is not an authentication problem', async () => {
+    setSession({ accessToken: 'token-123', user: USER })
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ message: 'Conflicto' }, 409)),
+    )
+
+    await captureError(apiClient.get('/auth/perfil'))
+
+    expect(getSession()).not.toBeNull()
+    expect(getLogoutReason()).toBeNull()
   })
 })

@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { Navigate, useNavigate } from 'react-router'
+import { Navigate, useLocation, useNavigate } from 'react-router'
 import { login } from '../api/auth-api'
-import { setSession } from '../auth/session-store'
+import { getLogoutReason, setSession } from '../auth/session-store'
 import { useSession } from '../auth/use-session'
 import { useToast } from '../components/feedback/toast-context'
 import { Button } from '../components/ui/Button'
@@ -13,6 +13,7 @@ import { ROUTES } from '../navigation/routes'
 
 export function LoginPage() {
   const session = useSession()
+  const location = useLocation()
   const navigate = useNavigate()
   const notify = useToast()
 
@@ -21,8 +22,11 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  const redirectTarget = resolveRedirectTarget(location.state)
+  const sessionExpired = getLogoutReason() === 'expired'
+
   if (session) {
-    return <Navigate to={ROUTES.lane} replace />
+    return <Navigate to={redirectTarget} replace />
   }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
@@ -38,7 +42,7 @@ export function LoginPage() {
         description: `Bienvenido, ${response.usuario.nombreCompleto}.`,
         variant: 'success',
       })
-      navigate(ROUTES.lane, { replace: true })
+      navigate(redirectTarget, { replace: true })
     } catch (cause) {
       const message = isApiError(cause) ? cause.userMessage : 'No se pudo iniciar sesión.'
       setError(message)
@@ -91,6 +95,12 @@ export function LoginPage() {
               onChange={(event) => setPassword(event.target.value)}
             />
 
+            {sessionExpired && !error ? (
+              <p role="status" className="rounded-control bg-barrier-full-soft p-3 text-sm text-ink">
+                Tu sesión expiró. Inicia sesión nuevamente para continuar.
+              </p>
+            ) : null}
+
             {error ? (
               <p role="alert" className="rounded-control bg-feedback-error-soft p-3 text-sm text-ink">
                 {error}
@@ -110,4 +120,18 @@ export function LoginPage() {
       </div>
     </div>
   )
+}
+
+/**
+ * Only same-origin absolute paths are accepted, so router state coming from a
+ * link cannot turn the post-login redirect into an open redirect.
+ */
+function resolveRedirectTarget(state: unknown): string {
+  if (state && typeof state === 'object' && 'from' in state) {
+    const from = (state as { from?: unknown }).from
+    if (typeof from === 'string' && from.startsWith('/') && !from.startsWith('//')) {
+      return from
+    }
+  }
+  return ROUTES.lane
 }
