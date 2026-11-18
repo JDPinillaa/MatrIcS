@@ -2,6 +2,12 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router'
 import { login } from '../api/auth-api'
+import {
+  DEMO_ACCESS_ENABLED,
+  createDemoSession,
+  getDemoCredentials,
+  isDemoCredentials,
+} from '../auth/demo-access'
 import { getLogoutReason, setSession } from '../auth/session-store'
 import { useSession } from '../auth/use-session'
 import { useToast } from '../components/feedback/toast-context'
@@ -35,6 +41,17 @@ export function LoginPage() {
     setIsSubmitting(true)
 
     try {
+      if (DEMO_ACCESS_ENABLED && isDemoCredentials(email, password)) {
+        setSession(createDemoSession())
+        notify({
+          title: 'Acceso de demostración',
+          description: 'Sesión local, sin backend. Solo disponible en desarrollo.',
+          variant: 'info',
+        })
+        navigate(redirectTarget, { replace: true })
+        return
+      }
+
       const response = await login({ email: email.trim(), password })
       setSession({ accessToken: response.accessToken, user: response.usuario })
       notify({
@@ -111,6 +128,19 @@ export function LoginPage() {
               {isSubmitting ? 'Ingresando…' : 'Ingresar'}
             </Button>
           </form>
+
+          {DEMO_ACCESS_ENABLED ? (
+            <div className="mt-4 rounded-control border border-dashed border-line p-3 text-xs text-ink-muted">
+              <p className="font-semibold text-ink">Acceso de demostración (solo desarrollo)</p>
+              <p className="mt-1">
+                Correo: <code className="font-mono">{getDemoCredentials().email}</code>
+              </p>
+              <p>
+                Contraseña: <code className="font-mono">{getDemoCredentials().password}</code>
+              </p>
+              <p className="mt-1">Permite recorrer las vistas sin el backend en ejecución.</p>
+            </div>
+          ) : null}
 
           <p className="mt-4 text-xs text-ink-subtle">
             API: <code className="font-mono">{env.apiBaseUrl}</code>

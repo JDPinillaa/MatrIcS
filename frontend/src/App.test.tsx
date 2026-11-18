@@ -1,6 +1,8 @@
 import { cleanup, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
+import { getDemoCredentials } from './auth/demo-access'
 import { clearSession, setSession } from './auth/session-store'
 import type { UsuarioPerfil } from './api/types'
 
@@ -50,6 +52,41 @@ describe('App shell sin sesión', () => {
       await screen.findByRole('heading', { level: 1, name: /iniciar sesión/i }),
     ).toBeInTheDocument()
     expect(screen.queryByRole('navigation', { name: /menú principal/i })).not.toBeInTheDocument()
+  })
+
+  it('muestra las credenciales de demostración en el formulario de login', async () => {
+    window.history.pushState({}, '', '/login')
+    render(<App />)
+
+    expect(await screen.findByText(/acceso de demostración \(solo desarrollo\)/i)).toBeInTheDocument()
+    expect(screen.getByText(getDemoCredentials().email)).toBeInTheDocument()
+    expect(screen.getByText(getDemoCredentials().password)).toBeInTheDocument()
+  })
+
+  it('permite entrar con las credenciales de demostración cuando el backend está caído', async () => {    const user = userEvent.setup()
+    window.history.pushState({}, '', '/login')
+    render(<App />)
+
+    await user.type(screen.getByLabelText(/correo electrónico/i), getDemoCredentials().email)
+    await user.type(screen.getByLabelText(/contraseña/i), getDemoCredentials().password)
+    await user.click(screen.getByRole('button', { name: /ingresar/i }))
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: /carril de entrada\/salida/i }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('navigation', { name: /menú principal/i })).toBeInTheDocument()
+  })
+
+  it('vuelve a la vista que el usuario pidió antes de autenticarse', async () => {
+    const user = userEvent.setup()
+    window.history.pushState({}, '', '/consultas')
+    render(<App />)
+
+    await user.type(screen.getByLabelText(/correo electrónico/i), getDemoCredentials().email)
+    await user.type(screen.getByLabelText(/contraseña/i), getDemoCredentials().password)
+    await user.click(screen.getByRole('button', { name: /ingresar/i }))
+
+    expect(await screen.findByRole('heading', { level: 1, name: /^consultas$/i })).toBeInTheDocument()
   })
 })
 
