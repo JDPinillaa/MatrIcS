@@ -14,6 +14,7 @@ async function bootstrap(): Promise<void> {
   await app.listen(port);
   const logger = new Logger('Bootstrap');
   logger.log(`Backend corriendo en http://localhost:${port}`);
+  logger.log(`Documentación Swagger disponible en http://localhost:${port}/api/docs`);
 }
 
 void bootstrap();

@@ -8,6 +8,9 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { BusinessValidationException } from '../../../domain/exceptions/business-validation.exception';
+import { DomainConflictException } from '../../../domain/exceptions/domain-conflict.exception';
+import { DomainNotFoundException } from '../../../domain/exceptions/domain-not-found.exception';
+import { mapPostgresError } from './postgres-error.mapper';
 
 export interface StandardizedErrorResponse {
   statusCode: number;
@@ -51,14 +54,33 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const timestamp = new Date().toISOString();
 
     if (exception instanceof BusinessValidationException) {
-      return {
-        statusCode: HttpStatus.BAD_REQUEST,
-        error: HTTP_ERROR_LABELS[HttpStatus.BAD_REQUEST],
-        code: exception.code,
-        message: exception.message,
+      return this.formatPayload(
+        HttpStatus.BAD_REQUEST,
+        exception.code,
+        exception.message,
         timestamp,
         path,
-      };
+      );
+    }
+
+    if (exception instanceof DomainConflictException) {
+      return this.formatPayload(
+        HttpStatus.CONFLICT,
+        exception.code,
+        exception.message,
+        timestamp,
+        path,
+      );
+    }
+
+    if (exception instanceof DomainNotFoundException) {
+      return this.formatPayload(
+        HttpStatus.NOT_FOUND,
+        exception.code,
+        exception.message,
+        timestamp,
+        path,
+      );
     }
 
     if (exception instanceof HttpException) {
@@ -70,14 +92,18 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         statusCode,
       );
 
-      return {
-        statusCode,
-        error: HTTP_ERROR_LABELS[statusCode] ?? 'Error',
-        code,
-        message,
+      return this.formatPayload(statusCode, code, message, timestamp, path);
+    }
+
+    const mappedDbError = mapPostgresError(exception);
+    if (mappedDbError) {
+      return this.formatPayload(
+        mappedDbError.statusCode,
+        mappedDbError.code,
+        mappedDbError.message,
         timestamp,
         path,
-      };
+      );
     }
 
     if (exception instanceof Error) {
@@ -87,11 +113,27 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       );
     }
 
+    return this.formatPayload(
+      HttpStatus.INTERNAL_SERVER_ERROR,
+      'INTERNAL_SERVER_ERROR',
+      'Error interno del servidor',
+      timestamp,
+      path,
+    );
+  }
+
+  private formatPayload(
+    statusCode: number,
+    code: string,
+    message: string | string[],
+    timestamp: string,
+    path: string,
+  ): StandardizedErrorResponse {
     return {
-      statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-      error: HTTP_ERROR_LABELS[HttpStatus.INTERNAL_SERVER_ERROR],
-      code: 'INTERNAL_SERVER_ERROR',
-      message: 'Error interno del servidor',
+      statusCode,
+      error: HTTP_ERROR_LABELS[statusCode] ?? 'Error',
+      code,
+      message,
       timestamp,
       path,
     };

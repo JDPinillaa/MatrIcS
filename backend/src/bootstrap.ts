@@ -1,8 +1,9 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { GlobalExceptionFilter } from './infrastructure/http/filters/global-exception.filter';
+import { setupSwagger } from './infrastructure/http/swagger/swagger.config';
 
 /**
- * Configura pipes globales, CORS y manejador centralizado de excepciones.
+ * Configura pipes globales, CORS, Swagger UI y manejador centralizado de excepciones.
  * Se extrae del arranque HTTP para reutilizarse en pruebas de integración.
  */
 export function configureApp(app: INestApplication): INestApplication {
@@ -17,6 +18,7 @@ export function configureApp(app: INestApplication): INestApplication {
   );
 
   app.useGlobalFilters(new GlobalExceptionFilter());
+  setupSwagger(app);
 
   return app;
 }

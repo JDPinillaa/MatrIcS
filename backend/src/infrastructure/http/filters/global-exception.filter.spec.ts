@@ -8,6 +8,8 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { BusinessValidationException } from '../../../domain/exceptions/business-validation.exception';
+import { DomainConflictException } from '../../../domain/exceptions/domain-conflict.exception';
+import { DomainNotFoundException } from '../../../domain/exceptions/domain-not-found.exception';
 import { GlobalExceptionFilter } from './global-exception.filter';
 
 describe('GlobalExceptionFilter', () => {
@@ -98,5 +100,129 @@ describe('GlobalExceptionFilter', () => {
     expect(JSON.stringify(body)).not.toContain('secret_table');
     expect(body).not.toHaveProperty('stack');
     loggerSpy.mockRestore();
+  });
+
+  it('intercepta DomainConflictException y responde 409 JSON sin trazas internas', () => {
+    const { host, status, json } = createMockHost('/pagos');
+    const exception = new DomainConflictException(
+      'El cobro ya fue pagado previamente',
+      'CHARGE_ALREADY_PAID',
+    );
+
+    filter.catch(exception, host);
+
+    expect(status).toHaveBeenCalledWith(409);
+    const body = json.mock.calls[0][0];
+    expect(body).toMatchObject({
+      statusCode: 409,
+      error: 'Conflict',
+      code: 'CHARGE_ALREADY_PAID',
+      message: 'El cobro ya fue pagado previamente',
+      path: '/pagos',
+    });
+    expect(body).not.toHaveProperty('stack');
+  });
+
+  it('intercepta DomainNotFoundException y responde 404 JSON sin trazas internas', () => {
+    const { host, status, json } = createMockHost('/cobros/pendiente');
+    const exception = new DomainNotFoundException(
+      'No se encontró cobro pendiente para la placa ABC123',
+      'CHARGE_NOT_FOUND',
+    );
+
+    filter.catch(exception, host);
+
+    expect(status).toHaveBeenCalledWith(404);
+    const body = json.mock.calls[0][0];
+    expect(body).toMatchObject({
+      statusCode: 404,
+      error: 'Not Found',
+      code: 'CHARGE_NOT_FOUND',
+      message: 'No se encontró cobro pendiente para la placa ABC123',
+      path: '/cobros/pendiente',
+    });
+    expect(body).not.toHaveProperty('stack');
+  });
+
+  it('traduce error PostgreSQL 23505 (uq_cobros_placa_sede_dia) a 409 sin exponer detail ni stack', () => {
+    const { host, status, json } = createMockHost('/accesos/ingreso');
+    const pgError = Object.assign(
+      new Error('duplicate key value violates unique constraint "uq_cobros_placa_sede_dia"'),
+      {
+        code: '23505',
+        constraint: 'uq_cobros_placa_sede_dia',
+        detail: 'Key (placa, sede_id, fecha_dia_operativo)=(ABC123, 1, 2026-11-18) already exists.',
+        table: 'cobros',
+      },
+    );
+
+    filter.catch(pgError, host);
+
+    expect(status).toHaveBeenCalledWith(409);
+    const body = json.mock.calls[0][0];
+    expect(body).toMatchObject({
+      statusCode: 409,
+      error: 'Conflict',
+      code: 'DUPLICATE_DAILY_CHARGE',
+      path: '/accesos/ingreso',
+    });
+    expect(JSON.stringify(body)).not.toContain('Key (placa');
+    expect(body).not.toHaveProperty('detail');
+    expect(body).not.toHaveProperty('table');
+    expect(body).not.toHaveProperty('stack');
+  });
+
+  it('traduce error PostgreSQL 23505 (uq_pagos_llave_idempotencia) a 409 DUPLICATE_IDEMPOTENCY_KEY', () => {
+    const { host, status, json } = createMockHost('/pagos');
+    const pgError = Object.assign(new Error('duplicate key'), {
+      code: '23505',
+      constraint: 'uq_pagos_llave_idempotencia',
+    });
+
+    filter.catch(pgError, host);
+
+    expect(status).toHaveBeenCalledWith(409);
+    expect(json.mock.calls[0][0]).toMatchObject({
+      statusCode: 409,
+      error: 'Conflict',
+      code: 'DUPLICATE_IDEMPOTENCY_KEY',
+      path: '/pagos',
+    });
+  });
+
+  it('traduce error PostgreSQL 23514 (ck_cupos_ocupados) a 400 CAPACITY_LIMIT_EXCEEDED', () => {
+    const { host, status, json } = createMockHost('/accesos/ingreso');
+    const pgError = Object.assign(new Error('check constraint failed'), {
+      code: '23514',
+      constraint: 'ck_cupos_ocupados',
+    });
+
+    filter.catch(pgError, host);
+
+    expect(status).toHaveBeenCalledWith(400);
+    expect(json.mock.calls[0][0]).toMatchObject({
+      statusCode: 400,
+      error: 'Bad Request',
+      code: 'CAPACITY_LIMIT_EXCEEDED',
+      path: '/accesos/ingreso',
+    });
+  });
+
+  it('traduce error PostgreSQL 23503 (foreign_key_violation) a 400 INVALID_REFERENCE', () => {
+    const { host, status, json } = createMockHost('/accesos/ingreso');
+    const pgError = Object.assign(new Error('foreign key violation'), {
+      code: '23503',
+      constraint: 'fk_eventos_sede',
+    });
+
+    filter.catch(pgError, host);
+
+    expect(status).toHaveBeenCalledWith(400);
+    expect(json.mock.calls[0][0]).toMatchObject({
+      statusCode: 400,
+      error: 'Bad Request',
+      code: 'INVALID_REFERENCE',
+      path: '/accesos/ingreso',
+    });
   });
 });
