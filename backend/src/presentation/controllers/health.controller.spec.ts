@@ -76,4 +76,25 @@ describe('HealthController & HTTP Integration', () => {
     });
     expect(response.body).not.toHaveProperty('stack');
   });
+
+  it('GET /api/docs/ responde 200 OK con la interfaz interactiva de Swagger UI', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/api/docs/')
+      .expect(200);
+
+    expect(response.headers['content-type']).toContain('text/html');
+    expect(response.text).toContain('swagger-ui');
+    expect(response.text).toContain('MatrIcS API Docs');
+  });
+
+  it('GET /api/docs-json responde 200 OK con la especificación OpenAPI alineada', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/api/docs-json')
+      .expect(200);
+
+    expect(response.body.openapi).toBe('3.0.3');
+    expect(response.body.paths).toHaveProperty('/health');
+    expect(response.body.paths).toHaveProperty('/sedes/{sedeId}/umbral-confianza');
+    expect(response.body.paths).toHaveProperty('/lpr/reconocer');
+  });
 });
