@@ -123,8 +123,10 @@ paths:
       summary: Configura tarifas diurna/nocturna para CARRO y tarifa de MOTO (RN-01, RN-02)
       description: >
         Solo accesible para rol ADMINISTRADOR. Permite configurar la tarifa de
-        motos en $0 (exenta) o mayor. Rechaza configuraciones donde la tarifa
-        nocturna sea mayor o igual a la diurna del mismo tipo de vehículo.
+        motos en $0 (exención RN-01: se acepta motoDiurna = 0 y motoNocturna = 0)
+        o con valores positivos. Para toda tarifa con valor diurno mayor a cero
+        (y siempre en CARRO), se exige estrictamente que la tarifa nocturna sea
+        menor que la diurna (RN-02).
       operationId: actualizarTarifas
       security:
         - bearerAuth: []
@@ -222,17 +224,57 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
+  /sedes/{sedeId}/umbral-confianza:
+    put:
+      tags:
+        - Administración
+      summary: Configura el umbral mínimo de confianza LPR de la sede (HU-04)
+      description: >
+        Solo accesible para rol ADMINISTRADOR. Define el porcentaje mínimo (0 a 100)
+        exigido para autorizar ingresos o salidas automáticas sin intervención manual.
+      operationId: actualizarUmbralConfianza
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/SedeIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActualizarUmbralConfianzaRequest'
+      responses:
+        '200':
+          description: Umbral de confianza actualizado correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfiguracionSedeResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
   /accesos/ingreso:
     post:
       tags:
         - Accesos
       summary: Procesa el ingreso de un vehículo por placa y nivel de confianza (HU-03, HU-05)
       description: >
-        Valida formato de placa colombiano (AAA123 para CARRO, AAA12A para MOTO),
-        verifica si la confianza alcanza el umbral configurado, valida cupos
-        disponibles (LLENO si es 0), descuenta 1 cupo, abre la barrera simulada y
-        genera un único cobro por (placa, sede, día operativo 06:00-05:59) salvo
-        que ya exista cobro pendiente o pase diario vigente.
+        Valida formato de placa colombiano (CARRO: AAA123; MOTO: AAA12A o AAA12;
+        requiere que el CHECK SQL ck_*_placa_formato acepte 5-6 caracteres con
+        ^[A-Z]{3}[0-9]{2}[0-9A-Z]?$). Si confianzaLectura es menor al umbral
+        configurado, retorna requiereValidacionManual = true, resultadoBarrera = CERRADA
+        y evento = null sin persistir aún en eventos_acceso hasta que el operador
+        confirme en POST /accesos/validacion-manual. Si supera el umbral, valida
+        cupos (LLENO si es 0), descuenta 1 cupo, abre la barrera y genera un único
+        cobro por (placa, sede, día operativo 06:00-05:59).
       operationId: registrarIngreso
       security:
         - bearerAuth: []
@@ -304,7 +346,10 @@ paths:
         - Accesos
       summary: Valida el estado del cobro y autoriza o bloquea la salida (HU-07)
       description: >
-        Autoriza la apertura de la barrera simulada y libera 1 cupo únicamente si
+        Si la confianza de lectura es inferior al umbral de la sede, retorna
+        requiereValidacionManual = true, resultadoBarrera = CERRADA y evento = null
+        hasta confirmación en POST /accesos/validacion-manual. Si supera el umbral,
+        autoriza la apertura de la barrera simulada y libera 1 cupo únicamente si
         el vehículo no tiene cobro pendiente (ej. moto exenta en $0) o su cobro
         del día operativo se encuentra en estado PAGADO.
       operationId: registrarSalida
@@ -346,9 +391,13 @@ paths:
         - name: placa
           in: query
           required: true
-          description: Placa del vehículo en mayúsculas
+          description: >
+            Placa del vehículo en mayúsculas (CARRO: AAA123; MOTO: AAA12A o formato
+            antiguo AAA12). Nota BD: requiere ck_*_placa_formato con patrón
+            ^[A-Z]{3}[0-9]{2}[0-9A-Z]?$.
           schema:
             type: string
+            pattern: '^[A-Z]{3}[0-9]{2}[0-9A-Z]?$'
             example: ABC123
         - name: sedeId
           in: query
@@ -493,7 +542,7 @@ paths:
           required: false
           schema:
             type: string
-            enum: [PENDIENTE, PAGADO, EXENTO]
+            enum: [PENDIENTE, PAGADO, EXENTO, ANULADO]
       responses:
         '200':
           description: Listado de cobros filtrados con su tarifa histórica
@@ -515,6 +564,11 @@ paths:
       tags:
         - Motor LPR
       summary: Extrae placa y nivel de confianza desde una imagen mediante el adaptador LPR/OCR (HU-09)
+      description: >
+        Conecta con el adaptador ILprReader configurado (microservicio FastAPI OCR
+        o simulador local). Si el servicio OCR está apagado, responde con timeout o
+        no logra detectar una placa legible, realiza un fallback controlado (Plan B
+        local) retornando requiereValidacionManual = true sin interrumpir el carril.
       operationId: reconocerPlaca
       security:
         - bearerAuth: []
@@ -696,7 +750,7 @@ components:
         email:
           type: string
           format: email
-          example: operador@parqueadero.com
+          example: operador@parqueadero.local
         password:
           type: string
           format: password
@@ -710,11 +764,11 @@ components:
           example: 2
         nombreCompleto:
           type: string
-          example: Carlos Operador
+          example: Operador de Carril y Caja
         email:
           type: string
           format: email
-          example: operador@parqueadero.com
+          example: operador@parqueadero.local
         rol:
           type: string
           enum: [OPERADOR, ADMINISTRADOR]
@@ -744,7 +798,7 @@ components:
         valor:
           type: number
           minimum: 0
-          example: 10000
+          example: 4000
 
     FranjaHorariaDto:
       type: object
@@ -812,11 +866,11 @@ components:
         carroDiurna:
           type: number
           minimum: 0
-          example: 10000
+          example: 4000
         carroNocturna:
           type: number
           minimum: 0
-          example: 7000
+          example: 2500
         motoDiurna:
           type: number
           minimum: 0
@@ -856,6 +910,16 @@ components:
           minimum: 0
           example: 25
 
+    ActualizarUmbralConfianzaRequest:
+      type: object
+      required: [umbralConfianza]
+      properties:
+        umbralConfianza:
+          type: number
+          minimum: 0
+          maximum: 100
+          example: 80
+
     RegistroAccesoRequest:
       type: object
       required: [sedeId, placa, confianzaLectura]
@@ -865,6 +929,11 @@ components:
           example: 1
         placa:
           type: string
+          pattern: '^[A-Z]{3}[0-9]{2}[0-9A-Z]?$'
+          description: >
+            Formato colombiano: CARRO AAA123 (6 chars), MOTO AAA12A (6 chars) o
+            formato antiguo AAA12 (5 chars). Requiere ck_*_placa_formato actualizado
+            en BD a ^[A-Z]{3}[0-9]{2}[0-9A-Z]?$.
           example: ABC123
         confianzaLectura:
           type: number
@@ -887,7 +956,10 @@ components:
           enum: [CONFIRMAR, DESCARTAR]
         placaCorregida:
           type: string
-          description: Requerida cuando accion es CONFIRMAR
+          pattern: '^[A-Z]{3}[0-9]{2}[0-9A-Z]?$'
+          description: >
+            Requerida cuando accion es CONFIRMAR. Acepta CARRO (AAA123) y MOTO
+            (AAA12A o AAA12); requiere ck_*_placa_formato con ^[A-Z]{3}[0-9]{2}[0-9A-Z]?$.
           example: MNP789
         confianzaOriginal:
           type: number
@@ -911,6 +983,8 @@ components:
           example: 2
         placa:
           type: string
+          pattern: '^[A-Z]{3}[0-9]{2}[0-9A-Z]?$'
+          description: Placa normalizada (CARRO AAA123; MOTO AAA12A o AAA12; requiere ck_eventos_placa_formato actualizado en BD)
           example: ABC123
         tipoEvento:
           type: string
@@ -926,7 +1000,7 @@ components:
           format: date-time
         resultadoBarrera:
           type: string
-          enum: [ABIERTA, CERRADA, LLENO, PENDIENTE_VALIDACION]
+          enum: [ABIERTA, CERRADA, LLENO]
         motivo:
           type: string
           nullable: true
@@ -943,6 +1017,8 @@ components:
           example: 1
         placa:
           type: string
+          pattern: '^[A-Z]{3}[0-9]{2}[0-9A-Z]?$'
+          description: Placa normalizada (CARRO AAA123; MOTO AAA12A o AAA12; requiere ck_cobros_placa_formato actualizado en BD)
           example: ABC123
         tipoVehiculo:
           type: string
@@ -956,13 +1032,18 @@ components:
           enum: [DIURNA, NOCTURNA]
         valorAplicado:
           type: number
-          example: 10000
+          example: 4000
         estado:
           type: string
-          enum: [PENDIENTE, PAGADO, EXENTO]
+          enum: [PENDIENTE, PAGADO, EXENTO, ANULADO]
         generadoEn:
           type: string
           format: date-time
+        pagadoEn:
+          type: string
+          format: date-time
+          nullable: true
+          description: Fecha y hora del pago en caja proveniente de pagos.pagado_en si aplica (HU-08)
 
     ResultadoIngresoResponse:
       type: object
@@ -972,14 +1053,20 @@ components:
           example: false
         resultadoBarrera:
           type: string
-          enum: [ABIERTA, CERRADA, LLENO, PENDIENTE_VALIDACION]
+          enum: [ABIERTA, CERRADA, LLENO]
         motivo:
           type: string
           example: Barrera Abierta - Ingreso registrado correctamente
         evento:
-          $ref: '#/components/schemas/EventoAccesoDto'
+          allOf:
+            - $ref: '#/components/schemas/EventoAccesoDto'
+          nullable: true
+          description: Será null cuando requiereValidacionManual = true hasta confirmar en /accesos/validacion-manual
         cobro:
-          $ref: '#/components/schemas/CobroDto'
+          allOf:
+            - $ref: '#/components/schemas/CobroDto'
+          nullable: true
+          description: Será null cuando requiereValidacionManual = true o la barrera permanece CERRADA / LLENO
 
     ResultadoValidacionManualResponse:
       type: object
@@ -994,9 +1081,13 @@ components:
           type: string
           example: Lectura confirmada manualmente (LECTURA_MANUAL)
         evento:
-          $ref: '#/components/schemas/EventoAccesoDto'
+          allOf:
+            - $ref: '#/components/schemas/EventoAccesoDto'
+          nullable: true
         cobro:
-          $ref: '#/components/schemas/CobroDto'
+          allOf:
+            - $ref: '#/components/schemas/CobroDto'
+          nullable: true
 
     ResultadoSalidaResponse:
       type: object
@@ -1006,12 +1097,15 @@ components:
           example: false
         resultadoBarrera:
           type: string
-          enum: [ABIERTA, CERRADA, PENDIENTE_VALIDACION]
+          enum: [ABIERTA, CERRADA, LLENO]
         motivo:
           type: string
           example: 'Barrera Abierta: Pase diario vigente'
         evento:
-          $ref: '#/components/schemas/EventoAccesoDto'
+          allOf:
+            - $ref: '#/components/schemas/EventoAccesoDto'
+          nullable: true
+          description: Será null cuando requiereValidacionManual = true hasta confirmar en /accesos/validacion-manual
 
     RegistrarPagoRequest:
       type: object
@@ -1040,7 +1134,7 @@ components:
           example: 55
         monto:
           type: number
-          example: 10000
+          example: 4000
         metodo:
           type: string
           example: EFECTIVO
@@ -1074,3 +1168,12 @@ components:
           type: string
           enum: [OCR_FASTAPI, SIMULADOR]
           example: OCR_FASTAPI
+        requiereValidacionManual:
+          type: boolean
+          example: false
+          description: True si el servicio OCR falló, hizo timeout o la confianza quedó bajo el umbral
+        detalle:
+          type: string
+          nullable: true
+          example: null
+          description: Mensaje informativo cuando ocurre fallback al Plan B local o baja confianza
