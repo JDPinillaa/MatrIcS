@@ -28,12 +28,17 @@ import {
   SEDE_CONFIG_REPOSITORY_PORT,
   type ISedeConfigRepository,
 } from '../../domain/ports/sede-config.repository.port';
+import { Roles } from '../auth/auth.decorators';
 import { RegistroAccesoDto } from '../dto/registro-acceso.dto';
 import {
   ActualizarUmbralConfianzaDto,
   ValidacionManualDto,
 } from '../dto/validacion-manual.dto';
-
+                                                                                                                                 
+/**                                                                                                                              
+ * Operación de carriles de entrada y salida: exclusiva del rol OPERADOR (HU-01).                                                
+ */
+@Roles('OPERADOR')
 @Controller()
 export class AccessController {
   constructor(
@@ -82,9 +87,10 @@ export class AccessController {
     });
   }
 
+  @Roles('ADMINISTRADOR', 'OPERADOR')
   @Get('sedes/:sedeId/umbral-confianza')
   async obtenerUmbralConfianza(
-    @Param('sedeId', ParseIntPipe) sedeId: number,
+    @Param('sedeId', ParseIntPipe) sedeId: number, 
   ): Promise<SedeConfig> {
     const sede = await this.sedeConfigRepository.findActiveById(sedeId);
     if (!sede) {
@@ -94,8 +100,9 @@ export class AccessController {
       );
     }
     return sede;
-  }
+  } 
 
+  @Roles('ADMINISTRADOR')
   @Put('sedes/:sedeId/umbral-confianza')
   async actualizarUmbralConfianza(
     @Param('sedeId', ParseIntPipe) sedeId: number,
@@ -109,8 +116,8 @@ export class AccessController {
       : null;
 
     if (!updated) {
-      throw new DomainNotFoundException(
-        `No se encontró una sede activa con id ${sedeId}.`,
+      throw new DomainNotFoundException( 
+        `No se encontró una sede activa con id ${sedeId}.`, 
         'SITE_NOT_FOUND',
       );
     }
