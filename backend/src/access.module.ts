@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { RegisterEntryUseCase } from './application/use-cases/access/register-entry.use-case';
 import { RegisterExitUseCase } from './application/use-cases/access/register-exit.use-case';
+import { ValidateManualAccessUseCase } from './application/use-cases/access/validate-manual-access.use-case';
 import { PlateClassifier } from './domain/access/plate-classifier';
 import { BILLING_GENERATOR_PORT } from './domain/ports/billing-generator.port';
 import { CLOCK_PORT } from './domain/ports/clock.port';
@@ -55,6 +56,7 @@ import { AccessController } from './presentation/controllers/access.controller';
     },
     RegisterEntryUseCase,
     RegisterExitUseCase,
+    ValidateManualAccessUseCase,
   ],
   exports: [
     PlateClassifier,
