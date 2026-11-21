@@ -7,4 +7,8 @@ export const SEDE_CONFIG_REPOSITORY_PORT = Symbol('SEDE_CONFIG_REPOSITORY_PORT')
  */
 export interface ISedeConfigRepository {
   findActiveById(sedeId: number): Promise<SedeConfig | null>;
+  updateConfidenceThreshold?(
+    sedeId: number,
+    umbralConfianza: number,
+  ): Promise<SedeConfig | null>;
 }

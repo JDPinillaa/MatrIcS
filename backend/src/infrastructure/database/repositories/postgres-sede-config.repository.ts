@@ -41,4 +41,29 @@ export class PostgresSedeConfigRepository implements ISedeConfigRepository {
       activa: Boolean(row.activa),
     };
   }
+
+  async updateConfidenceThreshold(
+    sedeId: number,
+    umbralConfianza: number,
+  ): Promise<SedeConfig | null> {
+    const rows = await this.db.query<SedeRow>(
+      `UPDATE sedes
+       SET umbral_confianza = $2
+       WHERE id = $1 AND activa = TRUE
+       RETURNING id, nombre, umbral_confianza, activa`,
+      [sedeId, umbralConfianza],
+    );
+
+    const row = rows[0];
+    if (!row) {
+      return null;
+    }
+
+    return {
+      id: Number(row.id),
+      nombre: row.nombre,
+      umbralConfianza: Number(row.umbral_confianza),
+      activa: Boolean(row.activa),
+    };
+  }
 }
