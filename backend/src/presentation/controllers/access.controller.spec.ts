@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { RegisterEntryUseCase } from '../../application/use-cases/access/register-entry.use-case';
 import { RegisterExitUseCase } from '../../application/use-cases/access/register-exit.use-case';
+import { ValidateManualAccessUseCase } from '../../application/use-cases/access/validate-manual-access.use-case';
 import { configureApp } from '../../bootstrap';
 import type { EventoAccesoRecord } from '../../domain/access/access.types';
 import { PlateClassifier } from '../../domain/access/plate-classifier';
@@ -41,6 +42,7 @@ describe('AccessController HTTP Integration (HU-03 & HU-07)', () => {
   beforeAll(async () => {
     sedeRepo = {
       findActiveById: jest.fn(),
+      updateConfidenceThreshold: jest.fn(),
     };
     cupoRepo = {
       findBySedeAndVehicleType: jest.fn(),
@@ -70,6 +72,7 @@ describe('AccessController HTTP Integration (HU-03 & HU-07)', () => {
         },
         RegisterEntryUseCase,
         RegisterExitUseCase,
+        ValidateManualAccessUseCase,
       ],
     }).compile();
 
@@ -245,5 +248,138 @@ describe('AccessController HTTP Integration (HU-03 & HU-07)', () => {
       evento: { placa: 'ABC123', tipoEvento: 'SALIDA' },
     });
     expect(cupoRepo.releaseSpot).toHaveBeenCalledWith(1, 'CARRO');
+  });
+
+  it('HU-04 Caso de Éxito: pausa MNP789 con 60% (<80%) y al confirmar manualmente abre barrera y registra LECTURA_MANUAL', async () => {
+    const pausedResponse = await request(app.getHttpServer())
+      .post('/accesos/ingreso')
+      .send({ sedeId: 1, placa: 'MNP789', confianzaLectura: 60 })
+      .expect(201);
+
+    expect(pausedResponse.body).toEqual({
+      requiereValidacionManual: true,
+      resultadoBarrera: 'CERRADA',
+      motivo:
+        'Confianza de lectura (60%) inferior al umbral configurado (80%). Requiere validación manual del operador.',
+      evento: null,
+      cobro: null,
+    });
+    expect(eventoRepo.create).not.toHaveBeenCalled();
+
+    cupoRepo.findBySedeAndVehicleType.mockResolvedValue({
+      sedeId: 1,
+      tipoVehiculo: 'CARRO',
+      capacidadMaxima: 50,
+      ocupados: 10,
+    });
+    cupoRepo.reserveSpot.mockResolvedValue({
+      sedeId: 1,
+      tipoVehiculo: 'CARRO',
+      capacidadMaxima: 50,
+      ocupados: 11,
+    });
+    eventoRepo.create.mockResolvedValue({
+      id: 210,
+      sedeId: 1,
+      tipoVehiculo: 'CARRO',
+      usuarioId: 2,
+      placa: 'MNP789',
+      tipoEvento: 'ENTRADA',
+      confianzaLectura: 60,
+      lecturaManual: true,
+      fechaHora: fixedNow.toISOString(),
+      resultadoBarrera: 'ABIERTA',
+      motivo:
+        'Barrera Abierta: Ingreso confirmado manualmente por el operador (LECTURA_MANUAL)',
+    });
+
+    const confirmResponse = await request(app.getHttpServer())
+      .post('/accesos/validacion-manual')
+      .send({
+        sedeId: 1,
+        tipoEvento: 'ENTRADA',
+        accion: 'CONFIRMAR',
+        placaCorregida: 'MNP789',
+        confianzaOriginal: 60,
+      })
+      .expect(200);
+
+    expect(confirmResponse.body).toMatchObject({
+      descartado: false,
+      resultadoBarrera: 'ABIERTA',
+      motivo:
+        'Barrera Abierta: Ingreso confirmado manualmente por el operador (LECTURA_MANUAL)',
+      evento: {
+        placa: 'MNP789',
+        lecturaManual: true,
+        confianzaLectura: 60,
+        resultadoBarrera: 'ABIERTA',
+      },
+    });
+  });
+
+  it('HU-04 Caso de Error: rechaza placa corregida con formato inválido (AB12) con HTTP 400 INVALID_PLATE_FORMAT', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/accesos/validacion-manual')
+      .send({
+        sedeId: 1,
+        tipoEvento: 'ENTRADA',
+        accion: 'CONFIRMAR',
+        placaCorregida: 'AB12',
+        confianzaOriginal: 60,
+      })
+      .expect(400);
+
+    expect(response.body).toMatchObject({
+      statusCode: 400,
+      error: 'Bad Request',
+      code: 'INVALID_PLATE_FORMAT',
+      path: '/accesos/validacion-manual',
+    });
+    expect(eventoRepo.create).not.toHaveBeenCalled();
+  });
+
+  it('HU-04: permite descartar una lectura dudosa (DESCARTAR) manteniendo la barrera CERRADA', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/accesos/validacion-manual')
+      .send({
+        sedeId: 1,
+        tipoEvento: 'ENTRADA',
+        accion: 'DESCARTAR',
+        confianzaOriginal: 60,
+      })
+      .expect(200);
+
+    expect(response.body).toEqual({
+      descartado: true,
+      resultadoBarrera: 'CERRADA',
+      motivo:
+        'Barrera Cerrada: Lectura descartada manualmente por el operador (LECTURA_MANUAL)',
+      evento: null,
+      cobro: null,
+    });
+    expect(eventoRepo.create).not.toHaveBeenCalled();
+  });
+
+  it('HU-04: permite actualizar el umbral de confianza de la sede con PUT /sedes/:sedeId/umbral-confianza', async () => {
+    (sedeRepo.updateConfidenceThreshold as jest.Mock).mockResolvedValue({
+      id: 1,
+      nombre: 'Sede Principal',
+      umbralConfianza: 85,
+      activa: true,
+    });
+
+    const response = await request(app.getHttpServer())
+      .put('/sedes/1/umbral-confianza')
+      .send({ umbralConfianza: 85 })
+      .expect(200);
+
+    expect(response.body).toEqual({
+      id: 1,
+      nombre: 'Sede Principal',
+      umbralConfianza: 85,
+      activa: true,
+    });
+    expect(sedeRepo.updateConfidenceThreshold).toHaveBeenCalledWith(1, 85);
   });
 });
