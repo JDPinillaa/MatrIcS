@@ -1,0 +1,60 @@
+import { Module } from '@nestjs/common';
+import { RegisterEntryUseCase } from './application/use-cases/access/register-entry.use-case';
+import { PlateClassifier } from './domain/access/plate-classifier';
+import { BILLING_GENERATOR_PORT } from './domain/ports/billing-generator.port';
+import { CLOCK_PORT } from './domain/ports/clock.port';
+import { CUPO_REPOSITORY_PORT } from './domain/ports/cupo.repository.port';
+import { EVENTO_ACCESO_REPOSITORY_PORT } from './domain/ports/evento-acceso.repository.port';
+import { LPR_READER_PORT } from './domain/ports/lpr-reader.port';
+import { SEDE_CONFIG_REPOSITORY_PORT } from './domain/ports/sede-config.repository.port';
+import { NoopBillingGeneratorAdapter } from './infrastructure/adapters/noop-billing-generator.adapter';
+import { SimulatedLprAdapter } from './infrastructure/adapters/simulated-lpr.adapter';
+import { SystemClockAdapter } from './infrastructure/adapters/system-clock.adapter';
+import { PostgresCupoRepository } from './infrastructure/database/repositories/postgres-cupo.repository';
+import { PostgresEventoAccesoRepository } from './infrastructure/database/repositories/postgres-evento-acceso.repository';
+import { PostgresSedeConfigRepository } from './infrastructure/database/repositories/postgres-sede-config.repository';
+import { AccessController } from './presentation/controllers/access.controller';
+
+@Module({
+  controllers: [AccessController],
+  providers: [
+    {
+      provide: PlateClassifier,
+      useFactory: () => new PlateClassifier(),
+    },
+    {
+      provide: LPR_READER_PORT,
+      useClass: SimulatedLprAdapter,
+    },
+    {
+      provide: CLOCK_PORT,
+      useClass: SystemClockAdapter,
+    },
+    {
+      provide: BILLING_GENERATOR_PORT,
+      useClass: NoopBillingGeneratorAdapter,
+    },
+    {
+      provide: SEDE_CONFIG_REPOSITORY_PORT,
+      useClass: PostgresSedeConfigRepository,
+    },
+    {
+      provide: CUPO_REPOSITORY_PORT,
+      useClass: PostgresCupoRepository,
+    },
+    {
+      provide: EVENTO_ACCESO_REPOSITORY_PORT,
+      useClass: PostgresEventoAccesoRepository,
+    },
+    RegisterEntryUseCase,
+  ],
+  exports: [
+    PlateClassifier,
+    LPR_READER_PORT,
+    CLOCK_PORT,
+    SEDE_CONFIG_REPOSITORY_PORT,
+    CUPO_REPOSITORY_PORT,
+    EVENTO_ACCESO_REPOSITORY_PORT,
+  ],
+})
+export class AccessModule {}
