@@ -41,6 +41,8 @@
   --color-feedback-error: #b91c1c;
   --color-feedback-error-soft: #fef2f2;
   --color-feedback-error-line: #fca5a5;
+  --color-feedback-alert: #a65324;
+  --color-feedback-alert-soft: #f6ede5;
   --color-feedback-success: #15803d;
   --color-feedback-info: #1f6feb;
 

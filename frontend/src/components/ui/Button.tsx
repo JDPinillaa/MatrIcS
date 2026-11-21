@@ -4,7 +4,7 @@ import { cx } from '../../lib/cx'
 type ButtonVariant = 'primary' | 'secondary' | 'ghost'
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
-  primary: 'bg-brand-500 text-white hover:bg-brand-600 active:bg-brand-700 disabled:bg-brand-300',
+  primary: 'bg-ink text-white hover:bg-ink/90 active:bg-ink disabled:bg-ink-muted',
   secondary: 'border border-line-strong bg-surface text-ink hover:bg-surface-muted',
   ghost: 'bg-transparent text-ink-muted hover:bg-surface-muted hover:text-ink',
 }

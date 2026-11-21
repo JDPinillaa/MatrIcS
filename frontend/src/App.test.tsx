@@ -44,23 +44,38 @@ describe('App shell sin sesión', () => {
     expect(screen.queryByRole('navigation', { name: /menú principal/i })).not.toBeInTheDocument()
   })
 
-  it('renderiza el login fuera del shell operativo', async () => {
+  it('renderiza el login alineado con el mockup fuera del shell operativo', async () => {
     window.history.pushState({}, '', '/login')
     render(<App />)
 
     expect(
       await screen.findByRole('heading', { level: 1, name: /iniciar sesión/i }),
     ).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: /matrics/i })).toBeInTheDocument()
+    expect(screen.getByText(/tu sistema de parqueadero automatizado/i)).toBeInTheDocument()
+    expect(
+      screen.getByText(/¿problemas para ingresar\? contacta/i),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(/matrics v1\.0 · sistema de parqueadero automatizado/i),
+    ).toBeInTheDocument()
     expect(screen.queryByRole('navigation', { name: /menú principal/i })).not.toBeInTheDocument()
   })
 
-  it('muestra las credenciales de demostración en el formulario de login', async () => {
+  it('permite alternar la visibilidad de la contraseña en el formulario de login', async () => {
+    const user = userEvent.setup()
     window.history.pushState({}, '', '/login')
     render(<App />)
 
-    expect(await screen.findByText(/acceso de demostración \(solo desarrollo\)/i)).toBeInTheDocument()
-    expect(screen.getByText(getDemoCredentials().email)).toBeInTheDocument()
-    expect(screen.getByText(getDemoCredentials().password)).toBeInTheDocument()
+    const passwordInput = await screen.findByLabelText(/contraseña/i)
+    expect(passwordInput).toHaveAttribute('type', 'password')
+
+    const toggleButton = screen.getByRole('button', { name: /mostrar clave/i })
+    await user.click(toggleButton)
+    expect(passwordInput).toHaveAttribute('type', 'text')
+
+    await user.click(screen.getByRole('button', { name: /ocultar clave/i }))
+    expect(passwordInput).toHaveAttribute('type', 'password')
   })
 
   it('permite entrar con las credenciales de demostración cuando el backend está caído', async () => {    const user = userEvent.setup()
