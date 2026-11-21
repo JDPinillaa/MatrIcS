@@ -30,10 +30,10 @@
   --color-brand-700: #134b9f;
 
   /* Barrier semantics — DoD: ABIERTA (verde), CERRADA (rojo), LLENO (alerta) */
-  --color-barrier-open: #15803d;
-  --color-barrier-open-soft: #dcfce7;
-  --color-barrier-closed: #b91c1c;
-  --color-barrier-closed-soft: #fee2e2;
+  --color-barrier-open: #3f7c59;
+  --color-barrier-open-soft: #e7f0ea;
+  --color-barrier-closed: #a65324;
+  --color-barrier-closed-soft: #f6ede5;
   --color-barrier-full: #b45309;
   --color-barrier-full-soft: #fef3c7;
 

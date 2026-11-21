@@ -1,0 +1,31 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="58.9" height="174.9" viewBox="0 0 58.9 174.9" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="cabinet">
+<path id="Vector" d="M53.5 1.4L58.5 7.4V170.4L53.5 174.4V1.4Z" fill="#858D88" stroke-width="0.8" stroke-linejoin="round" stroke="#737C76"/>
+<path id="Vector_2" d="M0.5 3.4L8.5 0.4H53.5L54.5 3.4H0.5Z" fill="#C2C7C3" stroke-width="0.8" stroke-linejoin="round" stroke="#909892"/>
+<path id="Vector_3" d="M0.5 3.4H53.5V174.4H0.5V3.4Z" fill="url(#paint0_linear_0_8)" stroke-linejoin="round" stroke="#858E87"/>
+<path id="Vector_4" d="M2 5.4V171.4" stroke-width="0.8" stroke="#D0D5D0"/>
+<path id="Vector_5" d="M3.5 171.4H50.5V6.4" stroke-width="0.8" stroke="#919A93"/>
+<path id="Vector_6" d="M1.5 172.4H53.5V174.4H1.5V172.4Z" fill="#7E8780"/>
+<g id="status-panel">
+<path id="Vector_7" d="M36.5 20.4H25.5C23.2909 20.4 21.5 22.1909 21.5 24.4V152.4C21.5 154.609 23.2909 156.4 25.5 156.4H36.5C38.7091 156.4 40.5 154.609 40.5 152.4V24.4C40.5 22.1909 38.7091 20.4 36.5 20.4Z" fill="#77817A" stroke-width="0.8" stroke="#CCD1CC"/>
+<path id="Vector_8" d="M35.5 22.4H26.5C24.8431 22.4 23.5 23.7431 23.5 25.4V151.4C23.5 153.057 24.8431 154.4 26.5 154.4H35.5C37.1569 154.4 38.5 153.057 38.5 151.4V25.4C38.5 23.7431 37.1569 22.4 35.5 22.4Z" fill="#1E2722" stroke-width="0.7" stroke="#4B554E"/>
+<path id="Vector_9" d="M28.5 27.4H33.5L36.5 30.4V35.4L33.5 38.4H28.5L25.5 35.4V30.4L28.5 27.4Z" fill="#F0343C"/>
+<path id="Vector_10" d="M28.5 32.9H33.5" stroke-width="1.5" stroke-linecap="round" stroke="#FFF1ED"/>
+<path id="Vector_11" d="M29 57.4L31 53.4L33 57.4M29 65.4L31 61.4L33 65.4M29 73.4L31 69.4L33 73.4M29 81.4L31 77.4L33 81.4M29 89.4L31 85.4L33 89.4M29 97.4L31 93.4L33 97.4" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round" stroke="#819087"/>
+<path id="Vector_12" d="M29 110.4L33 115.4M33 110.4L29 115.4M29 120.4L33 125.4M33 120.4L29 125.4M29 130.4L33 135.4M33 130.4L29 135.4M29 140.4L33 145.4M33 140.4L29 145.4" stroke-width="1.2" stroke-linecap="round" stroke="#DF343D"/>
+</g>
+<g id="cabinet-fasteners">
+<path id="Vector_13" d="M12.5 57.1C13.4389 57.1 14.2 56.3389 14.2 55.4C14.2 54.4611 13.4389 53.7 12.5 53.7C11.5611 53.7 10.8 54.4611 10.8 55.4C10.8 56.3389 11.5611 57.1 12.5 57.1Z" fill="#CBD0CB" stroke-width="0.7" stroke="#909A92"/>
+<path id="Vector_14" d="M11.8 55.4H13.2" stroke-width="0.6" stroke="#87928A"/>
+<path id="Vector_15" d="M12.5 142.1C13.4389 142.1 14.2 141.339 14.2 140.4C14.2 139.461 13.4389 138.7 12.5 138.7C11.5611 138.7 10.8 139.461 10.8 140.4C10.8 141.339 11.5611 142.1 12.5 142.1Z" fill="#CBD0CB" stroke-width="0.7" stroke="#909A92"/>
+<path id="Vector_16" d="M11.8 140.4H13.2" stroke-width="0.6" stroke="#87928A"/>
+</g>
+</g>
+<defs>
+<linearGradient id="paint0_linear_0_8" x1="0.5" y1="3.4" x2="53.5" y2="3.4" gradientUnits="userSpaceOnUse">
+<stop stop-color="#A4AAA7"/>
+<stop offset="0.45" stop-color="#B9BFBB"/>
+<stop offset="1" stop-color="#9FA6A2"/>
+</linearGradient>
+</defs>
+</svg>

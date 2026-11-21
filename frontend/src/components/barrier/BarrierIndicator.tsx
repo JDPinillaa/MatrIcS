@@ -1,9 +1,7 @@
 import { cx } from '../../lib/cx'
 import type { VehicleType } from '../../api/types'
 import {
-  BADGE_ICON,
   BARRIER_BADGE_CLASSES,
-  BARRIER_TONE_VAR,
   getBarrierPresentation,
 } from './barrier-state'
 import type { BarrierState } from './barrier-state'
@@ -21,109 +19,161 @@ const VEHICLE_LABEL: Record<VehicleType, string> = {
   MOTO: 'Moto',
 }
 
+const STATUS_ICON_SRC: Record<BarrierState, string> = {
+  ABIERTA: '/icons/status-open.svg',
+  CERRADA: '/icons/status-closed.svg',
+  LLENO: '/icons/status-full.svg',
+}
+
 /**
- * Reusable representation of the simulated physical barrier and the lane state.
+ * Reusable representation of the simulated physical barrier and the lane state,
+ * aligned with the industrial cabinet and reflective boom from the Figma mockups.
  *
- * The DoD asks for ABIERTA (green), CERRADA (red) and LLENO (alert). Those colors
- * are never the only signal: the badge always shows an icon + the state name, and
- * the reason is always rendered as text.
+ * The DoD asks for ABIERTA (green), CERRADA (red/terracotta) and LLENO (alert).
+ * Those colors are never the only signal: the badge always shows an icon + the
+ * state name, and the reason is always rendered as text.
  */
 export function BarrierIndicator({ state, reason, vehicleType, className }: BarrierIndicatorProps) {
   const presentation = getBarrierPresentation(state)
-  const armColor = BARRIER_TONE_VAR[presentation.tone]
   const explanation = reason?.trim() || presentation.defaultReason
+  const isOpen = state === 'ABIERTA'
 
   return (
     <div className={cx('flex flex-col gap-4', className)}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-medium text-ink">Barrera física simulada</p>
+          <p className="text-sm leading-5 font-medium text-ink">Barrera</p>
           {vehicleType ? (
-            <p className="text-xs text-ink-muted">Carril de {VEHICLE_LABEL[vehicleType].toLowerCase()}</p>
+            <p className="text-xs leading-4 text-ink-muted">
+              Carril de {VEHICLE_LABEL[vehicleType].toLowerCase()}
+            </p>
           ) : null}
         </div>
         <span
           className={cx(
-            'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-semibold',
+            'inline-flex items-center gap-1 rounded-full px-3 py-1 text-[13px] leading-[18px] font-semibold uppercase',
             BARRIER_BADGE_CLASSES[presentation.tone],
           )}
         >
-          <BadgeIcon state={state} />
+          <img
+            src={STATUS_ICON_SRC[state]}
+            alt=""
+            width={20}
+            height={20}
+            className="block size-5 shrink-0"
+          />
           {presentation.label}
         </span>
       </div>
 
-      <div className="rounded-control border border-line bg-surface-muted">
-        <svg
-          viewBox="0 0 260 130"
-          role="img"
-          aria-hidden="true"
-          className="h-32 w-full"
-          preserveAspectRatio="xMidYMid meet"
-        >
-          {/* Lane surface */}
-          <line x1="0" y1="102" x2="260" y2="102" stroke="var(--color-line)" strokeWidth="2" />
-          <line
-            x1="150"
-            y1="102"
-            x2="230"
-            y2="102"
-            stroke="var(--color-line-strong)"
-            strokeWidth="2"
-            strokeDasharray="10 8"
-          />
-
-          {/* Post + arm, rotating around the post top */}
-          <g transform="translate(56 100)">
-            <rect x="-7" y="-30" width="14" height="30" rx="4" fill="var(--color-line-strong)" />
-            <rect x="-11" y="-4" width="22" height="6" rx="3" fill="var(--color-line-strong)" />
-            <g
-              style={{
-                transform: `rotate(${presentation.armAngle}deg)`,
-                transformOrigin: '0px 0px',
-                transition: 'transform 500ms ease',
-              }}
-            >
-              <rect x="0" y="-7" width="158" height="9" rx="4.5" fill={armColor} />
-              <rect x="120" y="-7" width="38" height="9" fill="var(--color-surface)" opacity="0.85" />
-              <rect x="128" y="-7" width="10" height="9" fill={armColor} opacity="0.55" />
-            </g>
-            <circle cx="0" cy="0" r="4.5" fill={armColor} />
-          </g>
-        </svg>
+      <div className="flex w-full justify-center overflow-hidden rounded-control border border-line bg-surface-muted px-4">
+        <div className="relative aspect-video w-full max-w-[420px]">
+          {isOpen ? (
+            <>
+              <div className="absolute top-[94.74%] left-[6.38%] w-[87.25%]">
+                <img
+                  src="/barrier/lane-line.svg"
+                  alt=""
+                  width={469.591}
+                  height={3.35422}
+                  className="block h-auto w-full"
+                />
+              </div>
+              <div className="absolute top-[98.0%] left-[26.63%] w-[63.88%]">
+                <img
+                  src="/barrier/lane-dashes.svg"
+                  alt=""
+                  width={345.485}
+                  height={3.35422}
+                  className="block h-auto w-full"
+                />
+              </div>
+              <div
+                className="absolute top-[68.14%] left-[37.72%] w-[41.05%] origin-[2%_50%] transition-transform duration-500 ease-out"
+                style={{ transform: `rotate(${presentation.armAngle}deg)` }}
+              >
+                <img
+                  src="/barrier/boom-open.svg"
+                  alt=""
+                  width={220.963}
+                  height={9.79}
+                  className="block h-auto w-full"
+                />
+              </div>
+              <div className="absolute top-[63.04%] left-[32.61%] w-[6.02%]">
+                <img
+                  src="/barrier/cabinet-open.svg"
+                  alt=""
+                  width={32.395}
+                  height={96.195}
+                  className="block h-auto w-full"
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="absolute top-[76.67%] left-[6.38%] w-[87.25%]">
+                <img
+                  src="/barrier/lane-line.svg"
+                  alt=""
+                  width={469.591}
+                  height={3.35422}
+                  className="block h-auto w-full"
+                />
+              </div>
+              <div className="absolute top-[82.78%] left-[26.63%] w-[63.88%]">
+                <img
+                  src="/barrier/lane-dashes.svg"
+                  alt=""
+                  width={345.485}
+                  height={3.35422}
+                  className="block h-auto w-full"
+                />
+              </div>
+              <div
+                className="absolute top-[26.17%] left-[17.49%] w-[74.64%] origin-[2%_50%] transition-transform duration-500 ease-out"
+                style={{ transform: `rotate(${presentation.armAngle}deg)` }}
+              >
+                <img
+                  src="/barrier/boom-closed.svg"
+                  alt=""
+                  width={401.75}
+                  height={17.8}
+                  className="block h-auto w-full"
+                />
+              </div>
+              <div className="absolute top-[16.89%] left-[8.20%] w-[10.94%]">
+                <img
+                  src="/barrier/cabinet-closed.svg"
+                  alt=""
+                  width={58.9}
+                  height={174.9}
+                  className="block h-auto w-full"
+                />
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Live region: state changes are announced, not just painted. */}
-      <p role="status" aria-live="polite" className="flex gap-2 text-sm text-ink-muted">
-        <svg
-          aria-hidden="true"
-          viewBox="0 0 20 20"
-          className="mt-0.5 h-4 w-4 shrink-0"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.7"
-        >
-          <circle cx="10" cy="10" r="7.5" />
-          <path d="M10 6.2v4.6M10 13.4v.4" strokeLinecap="round" />
-        </svg>
+      <p
+        role="status"
+        aria-live="polite"
+        className={cx(
+          'flex items-center gap-2 text-sm leading-5',
+          isOpen ? 'text-barrier-open' : 'text-ink-muted',
+        )}
+      >
+        <img
+          src={isOpen ? '/icons/info-open.svg' : '/icons/info-muted.svg'}
+          alt=""
+          width={20}
+          height={20}
+          className="block size-5 shrink-0"
+        />
         <span>{explanation}</span>
       </p>
     </div>
-  )
-}
-
-function BadgeIcon({ state }: { state: BarrierState }) {
-  const kind = BADGE_ICON[state]
-  return (
-    <svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-      {kind === 'open' ? <path d="M5 13l4-4 3 3 3-5" strokeLinecap="round" strokeLinejoin="round" /> : null}
-      {kind === 'closed' ? <path d="M5 5l10 10M15 5L5 15" strokeLinecap="round" /> : null}
-      {kind === 'alert' ? (
-        <>
-          <path d="M10 3.5l7 12.5H3z" strokeLinejoin="round" />
-          <path d="M10 8v3.2M10 13.6v.4" strokeLinecap="round" />
-        </>
-      ) : null}
-    </svg>
   )
 }

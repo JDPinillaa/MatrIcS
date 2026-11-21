@@ -24,4 +24,18 @@ describe('BarrierIndicator', () => {
     expect(status).toHaveAttribute('aria-live', 'polite')
     expect(status).toHaveTextContent(/puede ingresar o salir/i)
   })
+
+  it('renders the industrial cabinet and reflective boom matching the mockup state', () => {
+    const { container, rerender } = render(<BarrierIndicator state="CERRADA" vehicleType="CARRO" />)
+
+    expect(screen.getByText('Barrera')).toBeInTheDocument()
+    expect(screen.getByText('Carril de carro')).toBeInTheDocument()
+    expect(container.querySelector('img[src="/barrier/cabinet-closed.svg"]')).toBeInTheDocument()
+    expect(container.querySelector('img[src="/barrier/boom-closed.svg"]')).toBeInTheDocument()
+
+    rerender(<BarrierIndicator state="ABIERTA" vehicleType="MOTO" />)
+    expect(screen.getByText('Carril de moto')).toBeInTheDocument()
+    expect(container.querySelector('img[src="/barrier/cabinet-open.svg"]')).toBeInTheDocument()
+    expect(container.querySelector('img[src="/barrier/boom-open.svg"]')).toBeInTheDocument()
+  })
 })

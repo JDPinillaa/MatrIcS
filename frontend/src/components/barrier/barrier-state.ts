@@ -27,7 +27,7 @@ export const BARRIER_PRESENTATION: Record<BarrierState, BarrierPresentation> = {
     label: 'Abierta',
     tone: 'open',
     defaultReason: 'El carril está habilitado: el vehículo puede ingresar o salir.',
-    armAngle: -60,
+    armAngle: -65,
   },
   CERRADA: {
     label: 'Cerrada',
@@ -68,7 +68,7 @@ export const BARRIER_TONE_VAR: Record<BarrierTone, string> = {
 }
 
 export const BARRIER_BADGE_CLASSES: Record<BarrierTone, string> = {
-  open: 'border-barrier-open/30 bg-barrier-open-soft text-barrier-open',
-  closed: 'border-barrier-closed/30 bg-barrier-closed-soft text-barrier-closed',
-  full: 'border-barrier-full/30 bg-barrier-full-soft text-barrier-full',
+  open: 'bg-barrier-open-soft text-barrier-open',
+  closed: 'bg-barrier-closed-soft text-barrier-closed',
+  full: 'bg-barrier-full-soft text-barrier-full',
 }
