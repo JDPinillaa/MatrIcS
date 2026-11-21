@@ -1,0 +1,30 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="220.963" height="9.79" viewBox="0 0 220.963 9.79" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Brazo abierto &#194;&#183; 65&#194;&#176;">
+<path id="Vector" d="M0.22 0.22H9.57V9.57H0.22V0.22Z" fill="#626966" stroke-width="0.44" stroke="#515855"/>
+<path id="Vector_2" d="M4.07004 1.32009H219.67V8.47009H4.07004V1.32009Z" fill="url(#paint0_linear_0_22)" stroke-width="0.44" stroke-linejoin="round" stroke="#B5BBB7"/>
+<path id="Vector_3" d="M4.07004 7.92012H219.67V9.57012H4.07004V7.92012Z" fill="#252B29"/>
+<path id="Vector_4" d="M5.17001 1.87006H218.57" stroke-width="0.55" stroke="white"/>
+<g id="reflective-stripes">
+<path id="Vector_5" d="M6.81999 6.27002L11.22 2.42002H19.47L15.07 6.27002H6.81999Z" fill="#D82730"/>
+<path id="Vector_6" d="M24.42 6.26993L28.82 2.41993H37.07L32.67 6.26993H24.42Z" fill="#D82730"/>
+<path id="Vector_7" d="M42.02 6.27L46.42 2.42H54.67L50.27 6.27H42.02Z" fill="#D82730"/>
+<path id="Vector_8" d="M59.62 6.26995L64.02 2.41995H72.27L67.87 6.26995H59.62Z" fill="#D82730"/>
+<path id="Vector_9" d="M77.22 6.27001L81.62 2.42001H89.87L85.47 6.27001H77.22Z" fill="#D82730"/>
+<path id="Vector_10" d="M94.82 6.26997L99.22 2.41997H107.47L103.07 6.26997H94.82Z" fill="#D82730"/>
+<path id="Vector_11" d="M112.42 6.27004L116.82 2.42004H125.07L120.67 6.27004H112.42Z" fill="#D82730"/>
+<path id="Vector_12" d="M130.02 6.26999L134.42 2.41999H142.67L138.27 6.26999H130.02Z" fill="#D82730"/>
+<path id="Vector_13" d="M147.62 6.26993L152.02 2.41993H160.27L155.87 6.26993H147.62Z" fill="#D82730"/>
+<path id="Vector_14" d="M165.22 6.27001L169.62 2.42001H177.87L173.47 6.27001H165.22Z" fill="#D82730"/>
+<path id="Vector_15" d="M182.82 6.26995L187.22 2.41995H195.47L191.07 6.26995H182.82Z" fill="#D82730"/>
+<path id="Vector_16" d="M200.42 6.27002L204.82 2.42002H213.07L208.67 6.27002H200.42Z" fill="#D82730"/>
+</g>
+<path id="Vector_17" d="M219.12 1.32005H220.77V8.47005H219.12V1.32005Z" fill="#E3E6E3" stroke-width="0.385" stroke="#ABB2AD"/>
+</g>
+<defs>
+<linearGradient id="paint0_linear_0_22" x1="4.07004" y1="1.32009" x2="4.07004" y2="8.47009" gradientUnits="userSpaceOnUse">
+<stop stop-color="white"/>
+<stop offset="0.7" stop-color="#F4F5F3"/>
+<stop offset="1" stop-color="#D9DDDA"/>
+</linearGradient>
+</defs>
+</svg>
