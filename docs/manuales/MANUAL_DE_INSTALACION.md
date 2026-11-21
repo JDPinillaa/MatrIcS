@@ -7,7 +7,6 @@
 
 ## 1. Tabla de Herramientas y Tecnologías
 
-> **Nota para exportación a PDF:** Insertar el logotipo oficial de cada herramienta en la columna **Logo** al diagramar el PDF final para la carpeta `MANUALES/`.
 
 | Logo | Herramienta / Lenguaje | Descripción | Versión exacta | Link de Descarga Oficial |
 | :---: | :--- | :--- | :--- | :--- |
@@ -58,7 +57,7 @@ El repositorio **no versiona contraseñas reales**; solo incluye archivos `.env.
    ```bash
    cp backend/.env.example backend/.env
    ```
-   > Si no creas `backend/.env`, el backend detecta automáticamente las variables `POSTGRES_*` del archivo `.env` en la raíz.
+   > Si no se crea `backend/.env`, el backend detecta automáticamente las variables `POSTGRES_*` del archivo `.env` en la raíz.
    ```dotenv
    NODE_ENV=development
    PORT=3000

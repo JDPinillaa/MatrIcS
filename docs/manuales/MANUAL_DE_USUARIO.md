@@ -2,8 +2,6 @@
 
 **Audiencia:** Operadores de carril/caja y Administradores del parqueadero.  
 
-> **Nota para exportación a PDF:** Reemplazar los marcadores `[Insertar captura de pantalla real]` con capturas tomadas directamente del aplicativo corriendo en `http://localhost:5173`.
-
 ---
 
 ## 1. Acceso al Sistema (Inicio de Sesión)
@@ -12,7 +10,7 @@
 2. En la pantalla **Iniciar sesión**, digita tu **Correo electrónico** y **Contraseña** asignados según tu rol (`OPERADOR` o `ADMINISTRADOR`).
 3. Haz clic en **Ingresar**. Si tus credenciales son válidas, el sistema te redirige al panel operativo.
 
-`[Insertar captura de pantalla real: Pantalla de Inicio de Sesión]`
+`captura de pantalla: Pantalla de Inicio de Sesión`
 
 ---
 
@@ -29,7 +27,7 @@
    - **LLENO (alerta):** no quedan cupos disponibles para ese tipo de vehículo. La barrera permanece cerrada y no se registra el ingreso.
    - **CERRADA (rojo):** la lectura requiere validación manual o fue rechazada.
 
-`[Insertar captura de pantalla real: Carril de Entrada con Barrera ABIERTA y estado LLENO]`
+`captura de pantalla real Carril de Entrada con Barrera ABIERTA y estado LLENO`
 
 ### 2.2. Validación y Digitación Manual por Baja Confianza
 1. Si la lectura llega con una confianza **inferior al umbral configurado** (por defecto `80%`), la barrera permanece **CERRADA** y el sistema solicita intervención del operador.
@@ -37,7 +35,7 @@
    - **Confirmar / Corregir placa:** escribe los caracteres correctos y confirma. El sistema valida el formato y cupo, abre la barrera si aplica y guarda el evento marcado como **`LECTURA_MANUAL`** con tu usuario.
    - **Descartar lectura:** cancela la operación si se trató de un falso positivo.
 
-`[Insertar captura de pantalla real: Flujo de Validación Manual de Placa]`
+`captura de pantalla real: Flujo de Validación Manual de Placa`
 
 ### 2.3. Caja de Pagos (Registro de Pago en Efectivo y Pase Diario)
 1. En el menú lateral, abre **Caja de pagos**.
@@ -46,7 +44,7 @@
 4. El cobro pasa a estado **PAGADO** y queda habilitado un **pase vigente hasta las `05:59:59`** del día operativo: el vehículo puede salir y volver a entrar en la misma sede sin generar un cobro nuevo.
 5. Si presionas el botón de pago dos veces por error, el sistema es **idempotente**: no duplica el registro ni cobra dos veces.
 
-`[Insertar captura de pantalla real: Módulo de Caja de Pagos]`
+`captura de pantalla real: Módulo de Caja de Pagos`
 
 ### 2.4. Carril de Salida (Verificación de Cobro y Apertura)
 1. En el carril de salida, ingresa o captura la placa del vehículo que desea retirarse.
@@ -55,21 +53,21 @@
    - **Carro con cobro `PAGADO`:** la barrera cambia a **ABIERTA** (*"Barrera Abierta: Pase diario vigente"*), registra la salida y libera 1 cupo.
    - **Carro con cobro `PENDIENTE`:** la barrera permanece **CERRADA** (*"Barrera Cerrada: Cobro pendiente de pago"*), no registra salida y no libera cupo hasta que pague en caja.
 
-`[Insertar captura de pantalla real: Carril de Salida — Barrera CERRADA por cobro pendiente y ABIERTA tras pago]`
+`captura de pantalla real: Carril de Salida — Barrera CERRADA por cobro pendiente y ABIERTA tras pago`
 
 ### 2.5. Administración de Tarifas, Franjas y Cupos *(Solo Administrador)*
 1. Ingresa con rol **ADMINISTRADOR** y selecciona **Administración de tarifas y cupos**.
 2. Modifica las tarifas diurna y nocturna de carros, la tarifa de motos (`$0` para exención o valor positivo), los horarios de franja, el umbral de confianza o los cupos máximos.
 3. Haz clic en **Guardar**. El sistema impedirá guardar si la tarifa nocturna es mayor o igual que la diurna (para tarifas positivas) o si ingresas cupos negativos.
 
-`[Insertar captura de pantalla real: Panel de Administración de Tarifas y Cupos]`
+`captura de pantalla real: Panel de Administración de Tarifas y Cupos`
 
 ### 2.6. Consultas e Historial
 1. Selecciona **Consultas** en el menú principal.
 2. Alterna entre la pestaña **Eventos de acceso** y **Cobros generados**.
 3. Filtra por **placa** (búsqueda total o parcial), **fecha / día operativo** y **estado** (`PENDIENTE`, `PAGADO`, `EXENTO`) o **modo de captura** (`AUTOMATICA`, `LECTURA_MANUAL`).
 
-`[Insertar captura de pantalla real: Pantalla de Consultas de Eventos y Cobros]`
+`captura de pantalla real: Pantalla de Consultas de Eventos y Cobros`
 
 ---
 
