@@ -2,11 +2,16 @@ import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { RegisterEntryUseCase } from '../../application/use-cases/access/register-entry.use-case';
+import { RegisterExitUseCase } from '../../application/use-cases/access/register-exit.use-case';
 import { configureApp } from '../../bootstrap';
 import type { EventoAccesoRecord } from '../../domain/access/access.types';
 import { PlateClassifier } from '../../domain/access/plate-classifier';
 import { BILLING_GENERATOR_PORT } from '../../domain/ports/billing-generator.port';
 import { CLOCK_PORT } from '../../domain/ports/clock.port';
+import {
+  COBRO_CONSULTA_REPOSITORY_PORT,
+  type ICobroConsultaRepository,
+} from '../../domain/ports/cobro-consulta.repository.port';
 import {
   CUPO_REPOSITORY_PORT,
   type ICupoRepository,
@@ -24,11 +29,12 @@ import { NoopBillingGeneratorAdapter } from '../../infrastructure/adapters/noop-
 import { SimulatedLprAdapter } from '../../infrastructure/adapters/simulated-lpr.adapter';
 import { AccessController } from './access.controller';
 
-describe('AccessController HTTP Integration (HU-03)', () => {
+describe('AccessController HTTP Integration (HU-03 & HU-07)', () => {
   let app: INestApplication;
   let sedeRepo: jest.Mocked<ISedeConfigRepository>;
   let cupoRepo: jest.Mocked<ICupoRepository>;
   let eventoRepo: jest.Mocked<IEventoAccesoRepository>;
+  let cobroConsultaRepo: jest.Mocked<ICobroConsultaRepository>;
 
   const fixedNow = new Date('2026-11-21T15:00:00.000Z');
 
@@ -44,6 +50,9 @@ describe('AccessController HTTP Integration (HU-03)', () => {
     eventoRepo = {
       create: jest.fn(),
     };
+    cobroConsultaRepo = {
+      findByPlateSedeAndOperationalDay: jest.fn(),
+    };
 
     const moduleRef = await Test.createTestingModule({
       controllers: [AccessController],
@@ -55,7 +64,12 @@ describe('AccessController HTTP Integration (HU-03)', () => {
         { provide: SEDE_CONFIG_REPOSITORY_PORT, useValue: sedeRepo },
         { provide: CUPO_REPOSITORY_PORT, useValue: cupoRepo },
         { provide: EVENTO_ACCESO_REPOSITORY_PORT, useValue: eventoRepo },
+        {
+          provide: COBRO_CONSULTA_REPOSITORY_PORT,
+          useValue: cobroConsultaRepo,
+        },
         RegisterEntryUseCase,
+        RegisterExitUseCase,
       ],
     }).compile();
 
@@ -162,5 +176,74 @@ describe('AccessController HTTP Integration (HU-03)', () => {
       .expect(400);
 
     expect(response.body.statusCode).toBe(400);
+  });
+
+  it('POST /accesos/salida responde 200 CERRADA si el cobro está PENDIENTE (RN-06)', async () => {
+    cobroConsultaRepo.findByPlateSedeAndOperationalDay.mockResolvedValue({
+      id: 70,
+      sedeId: 1,
+      placa: 'ABC123',
+      tipoVehiculo: 'CARRO',
+      fechaDiaOperativo: '2026-11-21',
+      franjaAplicada: 'DIURNA',
+      valorAplicado: 4000,
+      estado: 'PENDIENTE',
+      generadoEn: fixedNow.toISOString(),
+      pagadoEn: null,
+    });
+
+    const response = await request(app.getHttpServer())
+      .post('/accesos/salida')
+      .send({ sedeId: 1, placa: 'ABC123', confianzaLectura: 95 })
+      .expect(200);
+
+    expect(response.body).toEqual({
+      requiereValidacionManual: false,
+      resultadoBarrera: 'CERRADA',
+      motivo: 'Barrera Cerrada: Cobro pendiente de pago',
+      evento: null,
+    });
+    expect(cupoRepo.releaseSpot).not.toHaveBeenCalled();
+  });
+
+  it('POST /accesos/salida responde 200 ABIERTA y libera cupo cuando el cobro está PAGADO', async () => {
+    cobroConsultaRepo.findByPlateSedeAndOperationalDay.mockResolvedValue({
+      id: 71,
+      sedeId: 1,
+      placa: 'ABC123',
+      tipoVehiculo: 'CARRO',
+      fechaDiaOperativo: '2026-11-21',
+      franjaAplicada: 'DIURNA',
+      valorAplicado: 4000,
+      estado: 'PAGADO',
+      generadoEn: fixedNow.toISOString(),
+      pagadoEn: fixedNow.toISOString(),
+    });
+    eventoRepo.create.mockResolvedValue({
+      id: 99,
+      sedeId: 1,
+      tipoVehiculo: 'CARRO',
+      usuarioId: null,
+      placa: 'ABC123',
+      tipoEvento: 'SALIDA',
+      confianzaLectura: 95,
+      lecturaManual: false,
+      fechaHora: fixedNow.toISOString(),
+      resultadoBarrera: 'ABIERTA',
+      motivo: 'Barrera Abierta: Pase diario vigente',
+    });
+
+    const response = await request(app.getHttpServer())
+      .post('/accesos/salida')
+      .send({ sedeId: 1, placa: 'ABC123', confianzaLectura: 95 })
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      requiereValidacionManual: false,
+      resultadoBarrera: 'ABIERTA',
+      motivo: 'Barrera Abierta: Pase diario vigente',
+      evento: { placa: 'ABC123', tipoEvento: 'SALIDA' },
+    });
+    expect(cupoRepo.releaseSpot).toHaveBeenCalledWith(1, 'CARRO');
   });
 });
