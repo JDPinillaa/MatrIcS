@@ -1,20 +1,67 @@
+import type { ReactNode } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router'
 import { clearSession } from '../../auth/session-store'
 import { useSession } from '../../auth/use-session'
 import { useToast } from '../feedback/toast-context'
 import { cx } from '../../lib/cx'
 import { MAIN_NAV, ROUTES } from '../../navigation/routes'
-import { BackendStatusBadge } from './BackendStatusBadge'
+import { BackendStatusNotice } from './BackendStatusNotice'
+
+const ICON_PROPS = {
+  viewBox: '0 0 20 20',
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 1.6,
+  strokeLinecap: 'round',
+  strokeLinejoin: 'round',
+  className: 'h-[18px] w-[18px]',
+} as const
+
+const NAV_ICONS: Record<string, ReactNode> = {
+  [ROUTES.lane]: (
+    <svg aria-hidden="true" {...ICON_PROPS}>
+      <path d="M3 13.5h14M4.6 13.5V10l1.9-4.2h7l1.9 4.2v3.5" />
+      <circle cx="6.6" cy="15.2" r="1.4" />
+      <circle cx="13.4" cy="15.2" r="1.4" />
+    </svg>
+  ),
+  [ROUTES.cashier]: (
+    <svg aria-hidden="true" {...ICON_PROPS}>
+      <rect x="2.2" y="5.6" width="15.6" height="9.4" rx="1.6" />
+      <path d="M2.2 8.9h15.6" />
+    </svg>
+  ),
+  [ROUTES.administration]: (
+    <svg aria-hidden="true" {...ICON_PROPS}>
+      <path d="M3 6h14M3 14h14" />
+      <circle cx="7.5" cy="6" r="1.7" />
+      <circle cx="12.5" cy="14" r="1.7" />
+    </svg>
+  ),
+  [ROUTES.queries]: (
+    <svg aria-hidden="true" {...ICON_PROPS}>
+      <circle cx="9" cy="9" r="5.2" />
+      <path d="M12.8 12.8L17 17" />
+    </svg>
+  ),
+}
+
+const LOGOUT_ICON = (
+  <svg aria-hidden="true" {...ICON_PROPS}>
+    <path d="M12.5 6.5V4.2H3.5v11.6h9V13.5" />
+    <path d="M8.6 10h8.2M14.2 7.2L17 10l-2.8 2.8" />
+  </svg>
+)
 
 const navLinkClass = ({ isActive }: { isActive: boolean }): string =>
   cx(
-    'block rounded-control px-3 py-2 text-sm transition-colors',
+    'flex h-10 items-center gap-2 rounded-control px-3 text-sm transition-colors',
     isActive
-      ? 'bg-brand-100 font-semibold text-brand-700'
-      : 'text-ink-muted hover:bg-surface-muted hover:text-ink',
+      ? 'bg-surface-sunken font-semibold text-ink'
+      : 'font-medium text-ink-muted hover:bg-surface-muted hover:text-ink',
   )
 
-/** Shell shared by every operational view: main menu + connectivity + content. */
+/** Shell shared by every operational view: brand header, main menu + content. */
 export function AppLayout() {
   const session = useSession()
   const navigate = useNavigate()
@@ -27,75 +74,70 @@ export function AppLayout() {
   }
 
   return (
-    <div className="flex min-h-full flex-col lg:flex-row">
-      <aside className="flex flex-col gap-6 border-b border-line bg-surface px-4 py-5 lg:w-72 lg:shrink-0 lg:border-r lg:border-b-0">
-        <div className="flex items-center gap-3">
-          <span
-            aria-hidden="true"
-            className="flex h-9 w-9 items-center justify-center rounded-control bg-brand-500 text-sm font-bold text-white"
-          >
-            M
-          </span>
+    <div className="flex min-h-full flex-col bg-surface">
+      <header className="border-b border-line">
+        <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between gap-6 px-6 py-3 sm:px-8">
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-ink">MatrIcS</p>
-            <p className="text-xs text-ink-muted">Parqueadero automatizado</p>
+            <img
+              src="/brand/matrics-logo.png"
+              alt="MatrIcS"
+              width={900}
+              height={320}
+              className="h-[53px] w-auto"
+            />
+            <p className="mt-1 text-[13px] leading-4 text-ink-muted">Parqueadero automatizado</p>
           </div>
-        </div>
 
-        <nav aria-label="Menú principal">
-          <ul className="flex flex-row gap-1 overflow-x-auto lg:flex-col">
+          {session ? (
+            <div className="flex shrink-0 items-center gap-5">
+              <div className="hidden text-right sm:block">
+                <p className="text-sm font-semibold text-ink">{session.user.nombreCompleto}</p>
+                <p className="text-[13px] leading-4 text-ink-muted">
+                  {session.user.rol} · {session.user.email}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="flex h-10 items-center gap-2 rounded-control border border-line-strong bg-surface px-4 text-sm font-medium text-ink transition-colors hover:bg-surface-muted"
+              >
+                {LOGOUT_ICON}
+                Cerrar sesión
+              </button>
+            </div>
+          ) : (
+            <NavLink to={ROUTES.login} className="text-sm font-semibold text-ink">
+              Iniciar sesión
+            </NavLink>
+          )}
+        </div>
+      </header>
+
+      <nav aria-label="Menú principal" className="border-b border-line">
+        <div className="mx-auto flex w-full max-w-[1440px] items-center gap-6 px-6 sm:px-8">
+          <p className="hidden text-xs font-semibold tracking-wide text-ink-muted uppercase lg:block">
+            Panel operativo
+          </p>
+          <ul className="ml-auto flex items-center gap-2 overflow-x-auto py-3">
             {MAIN_NAV.map((item) => (
               <li key={item.to} className="shrink-0">
                 <NavLink to={item.to} className={navLinkClass}>
+                  {NAV_ICONS[item.to]}
                   {item.label}
                 </NavLink>
               </li>
             ))}
           </ul>
-        </nav>
-
-        <div className="mt-auto flex flex-col gap-3 border-t border-line pt-4">
-          {session ? (
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-ink">{session.user.nombreCompleto}</p>
-              <p className="truncate text-xs text-ink-muted">
-                {session.user.rol} · {session.user.email}
-              </p>
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="mt-2 text-xs font-semibold text-brand-700 underline-offset-2 hover:underline"
-              >
-                Cerrar sesión
-              </button>
-            </div>
-          ) : (
-            <NavLink to={ROUTES.login} className={navLinkClass}>
-              Iniciar sesión
-            </NavLink>
-          )}
-
-          <NavLink
-            to={ROUTES.barrierDemo}
-            className="text-xs text-ink-subtle underline-offset-2 hover:text-ink-muted hover:underline"
-          >
-            Demo de la barrera simulada
-          </NavLink>
         </div>
-      </aside>
+      </nav>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between gap-4 border-b border-line bg-surface px-4 py-3 sm:px-6">
-          <p className="text-xs font-medium tracking-wide text-ink-subtle uppercase">Panel operativo</p>
-          <BackendStatusBadge />
-        </header>
+      <BackendStatusNotice />
 
-        <main className="flex-1 px-4 py-6 sm:px-6">
-          <div className="mx-auto w-full max-w-5xl">
-            <Outlet />
-          </div>
-        </main>
-      </div>
+      <main className="flex-1 px-6 py-6 sm:px-8">
+        <div className="mx-auto w-full max-w-[1280px]">
+          <Outlet />
+        </div>
+      </main>
     </div>
   )
 }
