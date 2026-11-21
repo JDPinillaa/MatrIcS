@@ -7,6 +7,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { AuthenticationException } from '../../../domain/exceptions/authentication.exception';
 import { BusinessValidationException } from '../../../domain/exceptions/business-validation.exception';
 import { DomainConflictException } from '../../../domain/exceptions/domain-conflict.exception';
 import { DomainNotFoundException } from '../../../domain/exceptions/domain-not-found.exception';
@@ -223,6 +224,21 @@ describe('GlobalExceptionFilter', () => {
       error: 'Bad Request',
       code: 'INVALID_REFERENCE',
       path: '/accesos/ingreso',
+    });
+  });
+
+  it('intercepta AuthenticationException y responde 401 sin revelar el motivo exacto (HU-01)', () => {
+    const { host, status, json } = createMockHost('/auth/login');
+
+    filter.catch(new AuthenticationException('Credenciales inválidas'), host);
+
+    expect(status).toHaveBeenCalledWith(401);
+    expect(json.mock.calls[0][0]).toMatchObject({
+      statusCode: 401,
+      error: 'Unauthorized',
+      code: 'INVALID_CREDENTIALS',
+      message: 'Credenciales inválidas',
+      path: '/auth/login',
     });
   });
 });

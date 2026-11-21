@@ -7,6 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { AuthenticationException } from '../../../domain/exceptions/authentication.exception';
 import { BusinessValidationException } from '../../../domain/exceptions/business-validation.exception';
 import { DomainConflictException } from '../../../domain/exceptions/domain-conflict.exception';
 import { DomainNotFoundException } from '../../../domain/exceptions/domain-not-found.exception';
@@ -56,6 +57,16 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     if (exception instanceof BusinessValidationException) {
       return this.formatPayload(
         HttpStatus.BAD_REQUEST,
+        exception.code,
+        exception.message,
+        timestamp,
+        path,
+      );
+    }
+
+    if (exception instanceof AuthenticationException) {
+      return this.formatPayload(
+        HttpStatus.UNAUTHORIZED,
         exception.code,
         exception.message,
         timestamp,

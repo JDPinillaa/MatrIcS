@@ -7,8 +7,13 @@ import {
   RegisterExitUseCase,
   type RegisterExitResult,
 } from '../../application/use-cases/access/register-exit.use-case';
+import { Roles } from '../auth/auth.decorators';
 import { RegistroAccesoDto } from '../dto/registro-acceso.dto';
 
+/**
+ * Operación de carriles de entrada y salida: exclusiva del rol OPERADOR (HU-01).
+ */
+@Roles('OPERADOR')
 @Controller('accesos')
 export class AccessController {
   constructor(
