@@ -72,17 +72,15 @@ export function LoginPage() {
   return (
     <div className="flex min-h-full items-center justify-center px-4 py-10">
       <div className="w-full max-w-sm">
-        <div className="mb-6 flex items-center gap-3">
-          <span
-            aria-hidden="true"
-            className="flex h-10 w-10 items-center justify-center rounded-control bg-brand-500 text-base font-bold text-white"
-          >
-            M
-          </span>
-          <div>
-            <p className="text-base font-semibold text-ink">MatrIcS</p>
-            <p className="text-xs text-ink-muted">Sistema de parqueadero automatizado</p>
-          </div>
+        <div className="mb-6 flex flex-col items-start gap-2">
+          <img
+            src="/brand/matrics-logo.png"
+            alt="MatrIcS"
+            width={900}
+            height={320}
+            className="h-20 w-auto"
+          />
+          <p className="text-xs text-ink-muted">Sistema de parqueadero automatizado</p>
         </div>
 
         <div className="rounded-card border border-line bg-surface p-6 shadow-card">
