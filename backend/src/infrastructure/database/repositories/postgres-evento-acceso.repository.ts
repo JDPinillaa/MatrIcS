@@ -4,16 +4,21 @@ import type {
   BarrierResult,
   CreateEventoAccesoInput,
   EventoAccesoRecord,
+  VehicleType,
 } from '../../../domain/access/access.types';
 import {
   DATABASE_CONNECTION_PORT,
   type IDatabaseConnection,
 } from '../../../domain/ports/database-connection.port';
-import type { IEventoAccesoRepository } from '../../../domain/ports/evento-acceso.repository.port';
+import type {
+  EventoAccesoQueryFilters,
+  IEventoAccesoRepository,
+} from '../../../domain/ports/evento-acceso.repository.port';
 
 interface EventoAccesoRow {
   id: string | number;
   sede_id: string | number;
+  tipo_vehiculo?: VehicleType;
   usuario_id: string | number | null;
   placa: string;
   tipo_evento: AccessEventType;
@@ -106,5 +111,74 @@ export class PostgresEventoAccesoRepository implements IEventoAccesoRepository {
       resultadoBarrera: row.resultado_barrera,
       motivo: row.motivo,
     };
+  }
+
+  async findMany(
+    filters: EventoAccesoQueryFilters = {},
+  ): Promise<EventoAccesoRecord[]> {
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+
+    if (filters.placa && filters.placa.trim().length > 0) {
+      params.push(`%${filters.placa.trim().toUpperCase()}%`);
+      conditions.push(`e.placa ILIKE $${params.length}`);
+    }
+
+    if (filters.fecha && filters.fecha.trim().length > 0) {
+      params.push(filters.fecha.trim());
+      conditions.push(
+        `((e.fecha_hora AT TIME ZONE 'America/Bogota')::date = $${params.length}::date OR fn_dia_operativo(e.fecha_hora) = $${params.length}::date)`,
+      );
+    }
+
+    if (filters.tipoEvento) {
+      params.push(filters.tipoEvento);
+      conditions.push(`e.tipo_evento = $${params.length}`);
+    }
+
+    if (typeof filters.lecturaManual === 'boolean') {
+      params.push(filters.lecturaManual);
+      conditions.push(`e.lectura_manual = $${params.length}`);
+    }
+
+    const whereClause =
+      conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const rows = await this.db.query<EventoAccesoRow>(
+      `SELECT
+         e.id,
+         e.sede_id,
+         tv.codigo AS tipo_vehiculo,
+         e.usuario_id,
+         e.placa,
+         e.tipo_evento,
+         e.confianza_lectura,
+         e.lectura_manual,
+         e.fecha_hora,
+         e.resultado_barrera,
+         e.motivo
+       FROM eventos_acceso e
+       INNER JOIN tipos_vehiculo tv ON tv.id = e.tipo_vehiculo_id
+       ${whereClause}
+       ORDER BY e.fecha_hora DESC, e.id DESC`,
+      params,
+    );
+
+    return rows.map((row) => ({
+      id: Number(row.id),
+      sedeId: Number(row.sede_id),
+      tipoVehiculo: row.tipo_vehiculo ?? 'CARRO',
+      usuarioId: row.usuario_id !== null ? Number(row.usuario_id) : null,
+      placa: row.placa,
+      tipoEvento: row.tipo_evento,
+      confianzaLectura: Number(row.confianza_lectura),
+      lecturaManual: Boolean(row.lectura_manual),
+      fechaHora:
+        row.fecha_hora instanceof Date
+          ? row.fecha_hora.toISOString()
+          : new Date(row.fecha_hora).toISOString(),
+      resultadoBarrera: row.resultado_barrera,
+      motivo: row.motivo,
+    }));
   }
 }
