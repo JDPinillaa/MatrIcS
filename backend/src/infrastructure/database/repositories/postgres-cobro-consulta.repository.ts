@@ -4,7 +4,10 @@ import type {
   CobroSummary,
   VehicleType,
 } from '../../../domain/access/access.types';
-import type { ICobroConsultaRepository } from '../../../domain/ports/cobro-consulta.repository.port';
+import type {
+  CobroQueryFilters,
+  ICobroConsultaRepository,
+} from '../../../domain/ports/cobro-consulta.repository.port';
 import {
   DATABASE_CONNECTION_PORT,
   type IDatabaseConnection,
@@ -64,6 +67,58 @@ export class PostgresCobroConsultaRepository
       return null;
     }
 
+    return this.toCobroSummary(row);
+  }
+
+  async findMany(filters: CobroQueryFilters = {}): Promise<CobroSummary[]> {
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+
+    if (filters.placa && filters.placa.trim().length > 0) {
+      params.push(`%${filters.placa.trim().toUpperCase()}%`);
+      conditions.push(`c.placa ILIKE $${params.length}`);
+    }
+
+    if (
+      filters.fechaDiaOperativo &&
+      filters.fechaDiaOperativo.trim().length > 0
+    ) {
+      params.push(filters.fechaDiaOperativo.trim());
+      conditions.push(`c.fecha_dia_operativo = $${params.length}::date`);
+    }
+
+    if (filters.estado) {
+      params.push(filters.estado);
+      conditions.push(`c.estado = $${params.length}`);
+    }
+
+    const whereClause =
+      conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const rows = await this.db.query<CobroConsultaRow>(
+      `SELECT
+         c.id,
+         c.sede_id,
+         c.placa,
+         tv.codigo AS tipo_vehiculo,
+         TO_CHAR(c.fecha_dia_operativo, 'YYYY-MM-DD') AS fecha_dia_operativo,
+         c.franja_aplicada,
+         c.valor_aplicado,
+         c.estado,
+         c.generado_en,
+         p.pagado_en
+       FROM cobros c
+       INNER JOIN tipos_vehiculo tv ON tv.id = c.tipo_vehiculo_id
+       LEFT JOIN pagos p ON p.cobro_id = c.id
+       ${whereClause}
+       ORDER BY c.generado_en DESC, c.id DESC`,
+      params,
+    );
+
+    return rows.map((row) => this.toCobroSummary(row));
+  }
+
+  private toCobroSummary(row: CobroConsultaRow): CobroSummary {
     return {
       id: Number(row.id),
       sedeId: Number(row.sede_id),
