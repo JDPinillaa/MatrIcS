@@ -4,6 +4,7 @@ import { AccessModule } from './access.module';
 import { AuthModule } from './auth.module';
 import { CheckHealthUseCase } from './application/use-cases/health/check-health.use-case';
 import { DatabaseModule } from './infrastructure/database/database.module';
+import { LprModule } from './lpr.module';
 import { HealthController } from './presentation/controllers/health.controller';
 
 @Module({
@@ -15,6 +16,7 @@ import { HealthController } from './presentation/controllers/health.controller';
     DatabaseModule,
     AuthModule,
     AccessModule,
+    LprModule,
   ],
   controllers: [HealthController],
   providers: [CheckHealthUseCase],
