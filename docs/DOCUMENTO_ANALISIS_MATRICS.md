@@ -4,7 +4,7 @@
 >
 > - Agregar **portada y subportada institucional UAM** e **infografía del manual de marca institucional UAM**.
 > - Insertar los **diagramas elaborados** en la sección **C** (Casos de Uso, Clases SOLID+Patrones, MER de `docs/DiagramaSoftwareParqueadero.png` y Mockups).
-> - Completar las reglas `RN-04`, `RN-05`, supuestos `S-01`/`S-03..S-07` desde los documentos base de cortes anteriores, los roles PO/SM oficiales y el enlace público del video de funcionamiento.
+> - Confirmar los roles PO/SM oficiales y pegar el enlace público del video de funcionamiento.
 
 ---
 
@@ -99,15 +99,25 @@ Construir una plataforma modular, confiable y auditable de gestión vehicular po
 
 ### B.7. Reglas de Negocio y Supuestos
 
-- **RN-01:** La tarifa de motos puede configurarse en `$0` (exenta de cobro) o en un valor positivo.
-- **RN-02:** Para tarifas positivas, la tarifa nocturna debe ser estrictamente menor que la diurna del mismo tipo de vehículo.
-- **RN-03:** El pago de un cobro habilita un pase de entrada y salida vigente para la placa en la sede hasta las `05:59:59` del día operativo.
-- **RN-04:** `[COMPLETAR DESDE DOCUMENTOS BASE DE CORTES ANTERIORES]`
-- **RN-05:** `[COMPLETAR DESDE DOCUMENTOS BASE DE CORTES ANTERIORES]`
-- **RN-06:** La barrera de salida abre únicamente si el cobro del día operativo está `PAGADO` o el vehículo está exento / sin cobro pendiente.
-- **RN-07:** Inmutabilidad histórica: cada cobro almacena el valor y franja aplicados al momento de su generación.
-- **S-02:** El día operativo abarca de `06:00:00` de un día calendario a `05:59:59` del día siguiente (`America/Bogota`).
-- **S-01, S-03 a S-07:** `[COMPLETAR DESDE DOCUMENTOS BASE DE CORTES ANTERIORES]`
+#### Reglas de Negocio (`RN-01` a `RN-07`)
+
+- **RN-01 (Exención configurable para motocicletas):** Las motos tienen una tarifa por defecto de `$0` (exentas de cobro), aunque este valor es configurable por el administrador.
+- **RN-02 (Jerarquía entre tarifa diurna y nocturna):** La tarifa nocturna debe ser estrictamente menor que la tarifa diurna para un mismo tipo de vehículo; el sistema debe rechazar configuraciones donde la tarifa nocturna sea mayor o igual a la diurna.
+- **RN-03 (Vigencia de pase diario por pago):** Al registrar el pago de un cobro, el vehículo obtiene un pase vigente hasta el cierre del día operativo actual (`05:59:59`), permitiéndole salir y volver a ingresar durante esa misma jornada sin generar un nuevo cobro.
+- **RN-04 (Liquidación por franja horaria de ingreso):** El valor del cobro para vehículos sujetos a tarifa (como carros) se determina como tarifa plana según la franja horaria (diurna o nocturna) vigente al momento del ingreso.
+- **RN-05 (Cobro único por día operativo):** Solo se genera un único cobro por combinación de `(placa, sede, día operativo)`. Si un vehículo ya tiene un cobro generado o pagado en el día operativo en curso, un reingreso no crea una nueva obligación de pago.
+- **RN-06 (Condición de apertura en salida):** La barrera del carril de salida se abre únicamente si el vehículo no tiene cobro exigible (por ejemplo, moto en `$0`) o si el cobro del día operativo actual se encuentra en estado `PAGADO`.
+- **RN-07 (Inmutabilidad histórica de tarifas):** Cada cobro debe almacenar una copia del valor de la tarifa con la que fue liquidado en ese momento, garantizando que modificaciones futuras de precios por parte del administrador no alteren los cobros ya generados.
+
+#### Supuestos Operativos (`S-01` a `S-07`)
+
+- **S-01 (Alcance de tipos de vehículos e identificación por placa):** El sistema opera en el MVP con dos categorías principales de vehículos (`CARRO` y `MOTO`), clasificados determinísticamente según el formato de placa colombiana (`AAA123` para carro y `AAA12A` / formato antiguo `AAA12` para moto).
+- **S-02 (Definición de día operativo):** El día operativo del parqueadero no sigue el día calendario (`00:00` a `23:59`), sino que inicia a las `06:00:00` de un día y finaliza a las `05:59:59` del día siguiente (`America/Bogota`).
+- **S-03 (Modelado de cobro por jornada):** El esquema de cobro se basa en una tarifa única por día operativo (pase diario según franja de entrada) y no en liquidación por minutos, horas o fracciones de tiempo.
+- **S-04 (Operación de una única sede en el MVP):** Aunque el modelo de datos contempla el identificador de sede para escalabilidad futura, el alcance obligatorio del MVP opera bajo una sede principal con un carril de entrada y un carril de salida.
+- **S-05 (Umbral de confianza para lectura automática):** Se asume que todo sensor o motor LPR entrega un porcentaje de confianza junto con la placa; lecturas iguales o superiores al umbral configurado se procesan automáticamente, mientras que lecturas inferiores requieren validación o digitación manual del operador.
+- **S-06 (Disponibilidad independiente de cupos):** La capacidad máxima y el control de ocupación del parqueadero se gestionan de forma independiente por tipo de vehículo (cupos exclusivos para carros y cupos exclusivos para motos).
+- **S-07 (Simulación de dispositivos físicos y servicios externos):** Se asume que en el entorno del MVP los componentes físicos (cámara LPR y barrera electromecánica) y externos (pasarela de pagos y facturación electrónica) se reemplazan por simuladores o interfaces desacopladas sin afectar la lógica del dominio.
 
 ### B.8. Roles y Responsabilidades (Scrum)
 
