@@ -8,6 +8,7 @@ import {
   type IPlateOcrRecognizer,
 } from '../../domain/ports/plate-ocr-recognizer.port';
 import { SimulatedImageOcrAdapter } from '../../infrastructure/adapters/simulated-image-ocr.adapter';
+import { ROLES_KEY } from '../auth/auth.decorators';
 import { LprController } from './lpr.controller';
 
 describe('LprController HTTP Integration (HU-09)', () => {
@@ -96,5 +97,10 @@ describe('LprController HTTP Integration (HU-09)', () => {
       code: 'INVALID_IMAGE_FORMAT',
       path: '/lpr/reconocer',
     });
+  });
+
+  it('LprController exige rol OPERADOR alineado con HU-01', () => {
+    const roles = Reflect.getMetadata(ROLES_KEY, LprController);
+    expect(roles).toEqual(['OPERADOR']);
   });
 });

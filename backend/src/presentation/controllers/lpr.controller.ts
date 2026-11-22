@@ -12,7 +12,12 @@ import type {
   OcrImageInput,
   OcrRecognitionResult,
 } from '../../domain/ports/plate-ocr-recognizer.port';
+import { Roles } from '../auth/auth.decorators';
 
+/**
+ * Reconocimiento LPR/OCR de imágenes en carril: restringido al rol OPERADOR (HU-01 / HU-09).
+ */
+@Roles('OPERADOR')
 @Controller('lpr')
 export class LprController {
   constructor(private readonly recognizePlateUseCase: RecognizePlateUseCase) {}
