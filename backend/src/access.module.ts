@@ -3,6 +3,8 @@ import { RegisterEntryUseCase } from './application/use-cases/access/register-en
 import { RegisterExitUseCase } from './application/use-cases/access/register-exit.use-case';
 import { GenerateDailyChargeUseCase } from './application/use-cases/billing/generate-daily-charge.use-case';
 import { ValidateManualAccessUseCase } from './application/use-cases/access/validate-manual-access.use-case';
+import { ListAccessEventsUseCase } from './application/use-cases/queries/list-access-events.use-case';
+import { ListChargesUseCase } from './application/use-cases/queries/list-charges.use-case';
 import { PlateClassifier } from './domain/access/plate-classifier';
 import { BILLING_GENERATOR_PORT } from './domain/ports/billing-generator.port';
 import { CLOCK_PORT } from './domain/ports/clock.port';
@@ -22,9 +24,10 @@ import { PostgresEventoAccesoRepository } from './infrastructure/database/reposi
 import { PostgresSedeConfigRepository } from './infrastructure/database/repositories/postgres-sede-config.repository';
 import { PostgresTarifaRepository } from './infrastructure/database/repositories/postgres-tarifa.repository';
 import { AccessController } from './presentation/controllers/access.controller';
+import { QueriesController } from './presentation/controllers/queries.controller';
 
 @Module({
-  controllers: [AccessController],
+  controllers: [AccessController, QueriesController],
   providers: [
     {
       provide: PlateClassifier,
@@ -70,6 +73,8 @@ import { AccessController } from './presentation/controllers/access.controller';
     RegisterEntryUseCase,
     RegisterExitUseCase,
     ValidateManualAccessUseCase,
+    ListAccessEventsUseCase,
+    ListChargesUseCase,
   ],
   exports: [
     PlateClassifier,
