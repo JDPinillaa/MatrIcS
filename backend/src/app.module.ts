@@ -6,6 +6,7 @@ import { CheckHealthUseCase } from './application/use-cases/health/check-health.
 import { DatabaseModule } from './infrastructure/database/database.module';
 import { LprModule } from './lpr.module';
 import { HealthController } from './presentation/controllers/health.controller';
+import { SiteSettingsModule } from './site-settings.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { HealthController } from './presentation/controllers/health.controller';
     AuthModule,
     AccessModule,
     LprModule,
+    SiteSettingsModule,
   ],
   controllers: [HealthController],
   providers: [CheckHealthUseCase],
